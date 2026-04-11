@@ -81,7 +81,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .cal-cell:nth-child(7n) { border-right: none; }
 .cal-cell.other-month { background: var(--bg2); }
 .cal-cell.today { background: var(--green-light); }
-.cal-date { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 3px; }
+.cal-date { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 3px; cursor: pointer; }
 .cal-cell.today .cal-date { color: var(--green); font-weight: 700; }
 .event-chip { font-size: 10px; padding: 2px 5px; border-radius: 4px; background: var(--green); color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; display: block; }
 .event-chip:hover { background: var(--green-mid); }
@@ -334,8 +334,8 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
       <div class="form-row"><label>Event name *</label><input type="text" id="f-name" placeholder="e.g. Rally for Housing Justice"/></div>
       <div class="form-row-inline">
         <div class="form-row"><label>Date *</label><input type="date" id="f-date" onchange="onDateChange()"/></div>
-        <div class="form-row"><label>Start time *</label><input type="time" id="f-time"/></div>
-        <div class="form-row"><label>End time</label><input type="time" id="f-time-end"/></div>
+        <div class="form-row"><label>Start time *</label><input type="time" id="f-time" step="900" onchange="seedEndTime()"/></div>
+        <div class="form-row"><label>End time</label><input type="time" id="f-time-end" step="900"/></div>
       </div>
       <div class="form-row"><label>Location / Address *</label><input type="text" id="f-location" placeholder="e.g. City Hall, 1400 JFK Blvd"/></div>
       <div class="form-row"><label>Organizer / Organization *</label><input type="text" id="f-organizer" placeholder="e.g. Philly Tenants Union"/></div>
@@ -384,6 +384,14 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
       <div class="success-msg" id="submit-success-msg"></div>
       <div class="form-actions"><button class="btn primary" onclick="closeModal('submit-modal')">Close</button></div>
     </div>
+  </div>
+</div>
+
+<!-- Day view modal -->
+<div id="day-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('day-modal')">
+  <div class="modal">
+    <div id="day-modal-body"></div>
+    <div class="form-actions"><button class="btn" onclick="closeModal('day-modal')">Close</button></div>
   </div>
 </div>
 
@@ -486,8 +494,7 @@ async function dbFetch(path, opts = {}) {
     catch(e) { errMsg += ': ' + errText.slice(0, 200); }
     throw new Error(errMsg);
   }
-  if (opts.method === 'DELETE' || opts.method === 'PATCH' || res.status === 204) return null;
-  return res.json();
+  return opts.method === 'DELETE' ? null : res.json();
 }
 
 async function loadEventsFromDb() {
@@ -722,7 +729,8 @@ function renderCalendar() {
     }
     if (isOther) cell.classList.add('other-month');
     if (!isOther && today.getFullYear()===y && today.getMonth()===m && today.getDate()===dayNum) cell.classList.add('today');
-    const de=document.createElement('div'); de.className='cal-date'; de.textContent=dayNum; cell.appendChild(de);
+    const de=document.createElement('div'); de.className='cal-date'; de.textContent=dayNum;
+    de.onclick=()=>showDayView(dateStr); cell.appendChild(de);
     const evs=evsByDate[dateStr]||[];
     evs.slice(0,2).forEach(ev => {
       const c=document.createElement('div');
@@ -780,6 +788,36 @@ function renderList() {
   });
 }
 
+function showDayView(dateStr) {
+  const windowStart = parseDate(dateStr);
+  const windowEnd = parseDate(dateStr);
+  const approved = state.events.filter(e => e.status === 'approved');
+  const evs = expandRecurringEvents(approved, windowStart, windowEnd)
+    .filter(e => e.date === dateStr)
+    .sort((a,b) => a.time.localeCompare(b.time));
+
+  const body = document.getElementById('day-modal-body');
+  const heading = `<h2 style="font-size:18px;font-weight:600;margin-bottom:1.25rem">${formatDateLong(dateStr)}</h2>`;
+
+  if (!evs.length) {
+    body.innerHTML = heading + '<p style="font-size:14px;color:var(--text-muted)">No events this day.</p>';
+  } else {
+    let html = heading;
+    evs.forEach(ev => {
+      const recDesc = describeRecurrence(ev);
+      html += `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">${esc(ev.name)}</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:3px">${fmtTimeRange(ev.time, ev.timeEnd)} &nbsp;·&nbsp; ${esc(ev.location)}</div>
+        <div style="font-size:13px;color:var(--text-muted)">${esc(ev.organizer)}${recDesc ? ` &nbsp;·&nbsp; ↻ ${esc(recDesc.split('·')[0].trim())}` : ''}</div>
+        ${ev.desc ? `<div style="font-size:13px;margin-top:5px">${esc(ev.desc)}</div>` : ''}
+        ${ev.url ? `<a class="event-link" href="${esc(ev.url)}" target="_blank" style="margin-top:4px;display:inline-block">More info →</a>` : ''}
+      </div>`;
+    });
+    body.innerHTML = html;
+  }
+  document.getElementById('day-modal').style.display = 'flex';
+}
+
 function showEventDetail(ev) {
   const recDesc = describeRecurrence(ev);
   document.getElementById('detail-body').innerHTML=`
@@ -798,6 +836,14 @@ function showEventDetail(ev) {
 // ================================================================
 function onDateChange() {
   updateMonthlyDesc();
+}
+
+function seedEndTime() {
+  const start = document.getElementById('f-time').value;
+  const endEl = document.getElementById('f-time-end');
+  if (start && !endEl.value) {
+    endEl.value = start;
+  }
 }
 
 function onRecurTypeChange() {
