@@ -334,8 +334,8 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
       <div class="form-row"><label>Event name *</label><input type="text" id="f-name" placeholder="e.g. Rally for Housing Justice"/></div>
       <div class="form-row-inline">
         <div class="form-row"><label>Date *</label><input type="date" id="f-date" onchange="onDateChange()"/></div>
-        <div class="form-row"><label>Start time *</label><input type="time" id="f-time" step="900" onchange="seedEndTime()"/></div>
-        <div class="form-row"><label>End time</label><input type="time" id="f-time-end" step="900"/></div>
+        <div class="form-row"><label>Start time *</label><select id="f-time" onchange="seedEndTime()"></select></div>
+        <div class="form-row"><label>End time</label><select id="f-time-end"></select></div>
       </div>
       <div class="form-row"><label>Location / Address *</label><input type="text" id="f-location" placeholder="e.g. City Hall, 1400 JFK Blvd"/></div>
       <div class="form-row"><label>Organizer / Organization *</label><input type="text" id="f-organizer" placeholder="e.g. Philly Tenants Union"/></div>
@@ -838,6 +838,32 @@ function onDateChange() {
   updateMonthlyDesc();
 }
 
+function buildTimeOptions(selectId, selectedVal) {
+  const sel = document.getElementById(selectId);
+  const prev = selectedVal !== undefined ? selectedVal : sel.value;
+  sel.innerHTML = '';
+  // Add blank option for end time
+  if (selectId === 'f-time-end') {
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = '— none —';
+    sel.appendChild(opt);
+  }
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = fmtTime(val);
+      if (val === prev) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+  if (!prev && selectId === 'f-time') {
+    // default to 12:00 PM
+    sel.value = '12:00';
+  }
+}
+
 function seedEndTime() {
   const start = document.getElementById('f-time').value;
   const endEl = document.getElementById('f-time-end');
@@ -882,7 +908,9 @@ function openSubmitModal() {
   document.getElementById('submit-form-body').style.display='';
   document.getElementById('submit-success').style.display='none';
   document.getElementById('submit-error').style.display='none';
-  ['f-name','f-date','f-time','f-time-end','f-location','f-organizer','f-url','f-desc'].forEach(id=>document.getElementById(id).value='');
+  ['f-name','f-date','f-location','f-organizer','f-url','f-desc'].forEach(id=>document.getElementById(id).value='');
+  buildTimeOptions('f-time', '12:00');
+  buildTimeOptions('f-time-end', '');
   document.getElementById('r-type').value='none';
   onRecurTypeChange();
   document.getElementById('submit-modal').style.display='flex';
