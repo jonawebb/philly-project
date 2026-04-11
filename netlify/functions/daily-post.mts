@@ -48,23 +48,30 @@ function buildDailyPost(events: any[], dateStr: string): string {
   const date = new Date(y, m - 1, d);
   const dayName = DAYS[date.getDay()];
   const monthName = MONTHS[m - 1];
+  const count = events.length;
 
-  const header = `🗓️ PHILLY ACTIONS TODAY — ${dayName.toUpperCase()}, ${monthName.toUpperCase()} ${d}\n\n`;
+  let post = `✊ ${count} ACTION${count !== 1 ? "S" : ""} IN PHILLY TODAY\n`;
+  post += `${dayName}, ${monthName} ${d}\n`;
+  post += `${"─".repeat(28)}\n`;
 
-  let body = "";
   for (const ev of events) {
-    body += `▸ ${ev.name}\n`;
-    body += `  🕐 ${formatTimeRange(ev.time, ev.time_end)}\n`;
-    body += `  📌 ${ev.location}\n`;
-    body += `  🏳️ ${ev.organizer}\n`;
-    if (ev.description) body += `  ${ev.description}\n`;
-    if (ev.url) body += `  🔗 ${ev.url}\n`;
-    body += "\n";
+    const timeStr = formatTimeRange(ev.time, ev.time_end);
+    post += `\n🔥 ${ev.name}\n`;
+    post += `⏰ ${timeStr}\n`;
+    post += `📍 ${ev.location}\n`;
+    if (ev.organizer) post += `👥 ${ev.organizer}\n`;
+    // Include description if it's short enough to read on mobile
+    if (ev.description && ev.description.length <= 120) {
+      post += `\n${ev.description}\n`;
+    }
+    if (ev.url) post += `🔗 ${ev.url}\n`;
   }
 
-  const footer = `More upcoming events at phillyactions.org\n\n#PhillyActions #Philadelphia #Activism #Protest`;
+  post += `\n${"─".repeat(28)}\n`;
+  post += `More upcoming events 👇\nphillyactions.org\n`;
+  post += `\n#PhillyActions #Philadelphia #TakeAction #Protest #Activism`;
 
-  return header + body + footer;
+  return post;
 }
 
 async function postToFacebook(message: string): Promise<void> {

@@ -60,37 +60,50 @@ function buildWeeklyPost(events: any[]): string {
   const now = new Date(new Date().getTime() - 5 * 60 * 60 * 1000);
   const today = now.toISOString().slice(0, 10);
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-  const [ty, tm, td] = today.split("-").map(Number);
-  const [ny, nm, nd] = nextWeek.split("-").map(Number);
-
-  const header = `📅 PHILLY ACTIONS THIS WEEK\n${MONTHS[tm-1]} ${td} – ${MONTHS[nm-1]} ${nd}, ${ny}\n\nHere's what's happening in Philadelphia this week:\n`;
+  const [tm, td] = today.split("-").map(Number).slice(1);
+  const [nm, nd] = nextWeek.split("-").map(Number).slice(1);
 
   if (events.length === 0) {
-    return header + "\nNo events listed this week — check back soon, or submit your event at phillyactions.org!\n\n#PhillyActions #Philadelphia #Activism";
+    return `✊ PHILLY ACTIONS — THIS WEEK\n\nNo events listed yet this week.\nKnow of something happening? Submit it at 👇\nphillyactions.org\n\n#PhillyActions #Philadelphia`;
   }
 
-  // Group events by date
+  // Group by date
   const byDate: Record<string, any[]> = {};
   for (const ev of events) {
     (byDate[ev.date] = byDate[ev.date] || []).push(ev);
   }
 
-  let body = "";
+  const totalEvents = events.length;
+  const dayCount = Object.keys(byDate).length;
+
+  let post = `✊ PHILLY ACTIONS THIS WEEK\n`;
+  post += `${MONTHS[tm-1]} ${td} – ${MONTHS[nm-1]} ${nd}\n`;
+  post += `${totalEvents} event${totalEvents !== 1 ? "s" : ""} across ${dayCount} day${dayCount !== 1 ? "s" : ""}\n`;
+  post += `${"─".repeat(28)}\n`;
+
   for (const [date, dayEvents] of Object.entries(byDate)) {
-    body += `\n📍 ${formatDate(date)}\n`;
+    const d = new Date(date + "T00:00:00");
+    const dayLabel = d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+    post += `\n📅 ${dayLabel.toUpperCase()}\n`;
+
     for (const ev of dayEvents) {
-      body += `\n▸ ${ev.name}\n`;
-      body += `  🕐 ${formatTimeRange(ev.time, ev.time_end)}\n`;
-      body += `  📌 ${ev.location}\n`;
-      body += `  🏳️ ${ev.organizer}\n`;
-      if (ev.url) body += `  🔗 ${ev.url}\n`;
+      const timeStr = formatTimeRange(ev.time, ev.time_end);
+      post += `\n🔥 ${ev.name}\n`;
+      post += `⏰ ${timeStr}  📍 ${ev.location}\n`;
+      if (ev.organizer) post += `👥 ${ev.organizer}\n`;
+      // Include description if short (under 100 chars)
+      if (ev.description && ev.description.length <= 100) {
+        post += `${ev.description}\n`;
+      }
+      if (ev.url) post += `🔗 ${ev.url}\n`;
     }
   }
 
-  const footer = `\nSee all upcoming events and submit your own at phillyactions.org\n\n#PhillyActions #Philadelphia #Activism #Protest #CommunityOrganizing`;
+  post += `\n${"─".repeat(28)}\n`;
+  post += `📲 Full calendar + submit your event:\nphillyactions.org\n`;
+  post += `\n#PhillyActions #Philadelphia #Activism #Protest #CommunityOrganizing`;
 
-  return header + body + footer;
+  return post;
 }
 
 async function postToFacebook(message: string): Promise<void> {
