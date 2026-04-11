@@ -329,7 +329,7 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
 <!-- Submit modal -->
 <div id="submit-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('submit-modal')">
   <div class="modal">
-    <h2>Submit an event</h2>
+    <h2 id="submit-modal-title">Submit an event</h2>
     <div id="submit-form-body">
       <div class="form-row"><label>Event name *</label><input type="text" id="f-name" placeholder="e.g. Rally for Housing Justice"/></div>
       <div class="form-row-inline">
@@ -377,7 +377,7 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
       <div id="submit-error" class="error-msg" style="display:none"></div>
       <div class="form-actions">
         <button class="btn" onclick="closeModal('submit-modal')">Cancel</button>
-        <button class="btn primary" onclick="submitEvent()">Submit event</button>
+        <button class="btn primary" id="submit-modal-btn" onclick="submitEvent()">Submit event</button>
       </div>
     </div>
     <div id="submit-success" style="display:none">
@@ -904,7 +904,12 @@ function updateMonthlyDesc() {
 
 document.addEventListener('change', e => { if (e.target.id==='r-monthly-mode') updateMonthlyDesc(); });
 
+let editingId = null;
+
 function openSubmitModal() {
+  editingId = null;
+  document.getElementById('submit-modal-title').textContent = 'Submit an event';
+  document.getElementById('submit-modal-btn').textContent = 'Submit event';
   document.getElementById('submit-form-body').style.display='';
   document.getElementById('submit-success').style.display='none';
   document.getElementById('submit-error').style.display='none';
@@ -913,6 +918,39 @@ function openSubmitModal() {
   buildTimeOptions('f-time-end', '');
   document.getElementById('r-type').value='none';
   onRecurTypeChange();
+  document.getElementById('submit-modal').style.display='flex';
+}
+
+function openEditModal(ev) {
+  editingId = ev.id;
+  document.getElementById('submit-modal-title').textContent = 'Edit event';
+  document.getElementById('submit-modal-btn').textContent = 'Save changes';
+  document.getElementById('submit-form-body').style.display='';
+  document.getElementById('submit-success').style.display='none';
+  document.getElementById('submit-error').style.display='none';
+  // Fill in fields
+  document.getElementById('f-name').value = ev.name || '';
+  document.getElementById('f-date').value = ev.date || '';
+  buildTimeOptions('f-time', ev.time || '12:00');
+  buildTimeOptions('f-time-end', ev.timeEnd || '');
+  document.getElementById('f-location').value = ev.location || '';
+  document.getElementById('f-organizer').value = ev.organizer || '';
+  document.getElementById('f-url').value = ev.url || '';
+  document.getElementById('f-desc').value = ev.desc || '';
+  // Recurrence
+  document.getElementById('r-type').value = ev.recurType || 'none';
+  onRecurTypeChange();
+  if (ev.recurType !== 'none') {
+    document.getElementById('r-monthly-mode').value = ev.recurMonthlyMode || 'date';
+    if (ev.recurNoEnd) {
+      document.getElementById('r-end-type').value = 'never';
+    } else {
+      document.getElementById('r-end-type').value = 'date';
+      document.getElementById('r-end-date').value = ev.recurEndDate || '';
+    }
+    onEndTypeChange();
+  }
+  updateMonthlyDesc();
   document.getElementById('submit-modal').style.display='flex';
 }
 
@@ -936,36 +974,52 @@ async function submitEvent() {
   if (recurType!=='none' && recurEndType==='date' && !recurEndDate) { errEl.textContent='Please set an end date for the recurrence.'; errEl.style.display=''; return; }
   errEl.style.display='none';
 
-  const status = state.requireApproval ? 'pending' : 'approved';
-  const eventData = { name, date, time, timeEnd, location, organizer, url, desc, status, recurType, recurMonthlyMode, recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
+  const dbBody = {
+    name, date, time, time_end: timeEnd||null, location, organizer,
+    url: url||null, description: desc||null,
+    recur_type: recurType,
+    recur_monthly_mode: recurMonthlyMode,
+    recur_end_date: (recurNoEnd||!recurEndDate) ? null : recurEndDate,
+    recur_no_end: recurNoEnd
+  };
 
-  if (db) {
-    try {
-      const row = await dbFetch('events', {
-        method: 'POST',
-        body: {
-          name, date, time, time_end: timeEnd||null, location, organizer,
-          url: url||null, description: desc||null, status,
-          recur_type: recurType,
-          recur_monthly_mode: recurMonthlyMode,
-          recur_end_date: (recurNoEnd||!recurEndDate) ? null : recurEndDate,
-          recur_no_end: recurNoEnd
-        }
-      });
-      if (row && row[0]) state.events.push(normalizeDbRow(row[0]));
-    } catch(e) { errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
+  if (editingId) {
+    // ---- UPDATE existing event ----
+    if (db) {
+      try {
+        await dbFetch(`events?id=eq.${editingId}`, { method:'PATCH', body: dbBody, prefer:'return=minimal' });
+      } catch(e) { errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
+    }
+    const idx = state.events.findIndex(e => e.id === editingId);
+    if (idx !== -1) {
+      state.events[idx] = { ...state.events[idx], name, date, time, timeEnd, location, organizer,
+        url, desc, recurType, recurMonthlyMode,
+        recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
+    }
+    saveLocalState(); renderAll(); renderAdmin();
+    closeModal('submit-modal');
+    editingId = null;
   } else {
-    eventData.id = Date.now().toString();
-    state.events.push(eventData);
-    saveLocalState();
+    // ---- CREATE new event ----
+    const status = state.requireApproval ? 'pending' : 'approved';
+    const eventData = { name, date, time, timeEnd, location, organizer, url, desc, status, recurType, recurMonthlyMode, recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
+    if (db) {
+      try {
+        const row = await dbFetch('events', { method:'POST', body: { ...dbBody, status } });
+        if (row && row[0]) state.events.push(normalizeDbRow(row[0]));
+      } catch(e) { errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
+    } else {
+      eventData.id = Date.now().toString();
+      state.events.push(eventData);
+      saveLocalState();
+    }
+    renderAll();
+    document.getElementById('submit-form-body').style.display='none';
+    document.getElementById('submit-success').style.display='';
+    document.getElementById('submit-success-msg').textContent = status==='approved'
+      ? 'Your event has been added to the calendar!'
+      : 'Your event has been submitted and is pending admin approval. Thank you!';
   }
-
-  renderAll();
-  document.getElementById('submit-form-body').style.display='none';
-  document.getElementById('submit-success').style.display='';
-  document.getElementById('submit-success-msg').textContent = status==='approved'
-    ? 'Your event has been added to the calendar!'
-    : 'Your event has been submitted and is pending admin approval. Thank you!';
 }
 
 // ================================================================
@@ -1046,6 +1100,10 @@ function renderAdminList(elId, evs, type) {
       <div class="name">${esc(ev.name)}</div>
       <div class="meta">${ev.date} · ${fmtTimeRange(ev.time, ev.timeEnd)} · ${esc(ev.location)} · ${esc(ev.organizer)}${recDesc?` · ↻ ${esc(recDesc)}`:''}
       </div></div><span class="badge ${ev.status}">${ev.status}</span>`;
+    // Edit button appears on all event types
+    const eb=document.createElement('button'); eb.className='btn sm'; eb.textContent='Edit';
+    eb.onclick=()=>openEditModal(ev);
+    row.appendChild(eb);
     if(type==='pending'){
       const ab=document.createElement('button'); ab.className='btn sm approve'; ab.textContent='Approve';
       ab.onclick=()=>changeEventStatus(ev,'approved');
