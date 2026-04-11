@@ -494,7 +494,8 @@ async function dbFetch(path, opts = {}) {
     catch(e) { errMsg += ': ' + errText.slice(0, 200); }
     throw new Error(errMsg);
   }
-  return opts.method === 'DELETE' ? null : res.json();
+  if (opts.method === 'DELETE' || opts.method === 'PATCH' || res.status === 204) return null;
+  return res.json();
 }
 
 async function loadEventsFromDb() {
