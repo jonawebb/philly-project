@@ -512,7 +512,6 @@ async function dbFetch(path, opts = {}) {
     }
     throw new Error(errMsg);
   }
-  }
   if (opts.method === 'DELETE' || opts.method === 'PATCH' || res.status === 204) return null;
   return res.json();
 }
@@ -1063,6 +1062,12 @@ function openEditModal(ev) {
   document.getElementById('submit-modal').style.display='flex';
 }
 
+function padTime(t) {
+  if (!t) return null;
+  const parts = t.split(':');
+  return parts[0].padStart(2,'0') + ':' + (parts[1]||'00').padStart(2,'0');
+}
+
 async function submitEvent() {
   const name=document.getElementById('f-name').value.trim();
   const date=document.getElementById('f-date').value;
@@ -1084,11 +1089,6 @@ async function submitEvent() {
   errEl.style.display='none';
 
   // Ensure time values are zero-padded HH:MM as Postgres expects
-  function padTime(t) {
-    if (!t) return null;
-    const parts = t.split(':');
-    return parts[0].padStart(2,'0') + ':' + (parts[1]||'00').padStart(2,'0');
-  }
   const safeTime = padTime(time);
   const safeTimeEnd = padTime(timeEnd);
 
