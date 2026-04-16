@@ -493,7 +493,7 @@ async function dbFetch(path, opts = {}) {
         'apikey': db.key,
         'Authorization': `Bearer ${db.key}`,
         'Content-Type': 'application/json',
-        'Prefer': opts.prefer || 'return=representation',
+        ...(opts.method && opts.method !== 'GET' ? {'Prefer': opts.prefer || 'return=representation'} : {}),
         ...opts.headers
       },
       method: opts.method || 'GET',
