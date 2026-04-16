@@ -554,9 +554,7 @@ function setDbStatus(state_, msg) {
   const dot = document.getElementById('db-bar');
   dot.style.display = 'block';
   dot.className = 'db-dot-corner' + (state_==='connected' ? ' connected' : state_==='error' ? ' error' : '');
-  dot.title = state_==='connected' ? 'Database connected' :
-              state_==='error' ? 'Database error: ' + (msg||'unknown') :
-              'Connecting to database…';
+  dot.title = state_==='error' ? 'Database error: ' + (msg||'unknown') : '';
 }
 
 async function saveDbConfig() {
