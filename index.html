@@ -493,6 +493,7 @@ async function dbFetch(path, opts = {}) {
         'apikey': db.key,
         'Authorization': `Bearer ${db.key}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         ...(opts.method && opts.method !== 'GET' ? {'Prefer': opts.prefer || 'return=representation'} : {}),
         ...opts.headers
       },
@@ -513,7 +514,7 @@ async function dbFetch(path, opts = {}) {
     }
     throw new Error(errMsg);
   }
-  if (opts.method === 'DELETE' || opts.method === 'PATCH' || res.status === 204) return null;
+  if (opts.method === 'DELETE' || opts.method === 'PATCH' || opts.method === 'POST' || res.status === 204 || res.status === 201) return null;
   return res.json();
 }
 
@@ -521,7 +522,7 @@ async function loadEventsFromDb() {
   try {
     setDbStatus('loading');
     const rows = await dbFetch('events?order=date.asc');
-    state.events = rows.map(normalizeDbRow);
+    state.events = (rows || []).map(normalizeDbRow);
     setDbStatus('connected');
     return true;
   } catch(e) {
