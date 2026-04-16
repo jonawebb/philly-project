@@ -1079,8 +1079,17 @@ async function submitEvent() {
   if (recurType!=='none' && recurEndType==='date' && !recurEndDate) { errEl.textContent='Please set an end date for the recurrence.'; errEl.style.display=''; return; }
   errEl.style.display='none';
 
+  // Ensure time values are zero-padded HH:MM as Postgres expects
+  function padTime(t) {
+    if (!t) return null;
+    const parts = t.split(':');
+    return parts[0].padStart(2,'0') + ':' + (parts[1]||'00').padStart(2,'0');
+  }
+  const safeTime = padTime(time);
+  const safeTimeEnd = padTime(timeEnd);
+
   const dbBody = {
-    name, date, time, time_end: timeEnd||null, location, organizer,
+    name, date, time: safeTime, time_end: safeTimeEnd, location, organizer,
     url: url||null, description: desc||null,
     recur_type: recurType,
     recur_monthly_mode: recurMonthlyMode,
@@ -1110,10 +1119,11 @@ async function submitEvent() {
     const eventData = { name, date, time, timeEnd, location, organizer, url, desc, status, recurType, recurMonthlyMode, recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
     if (db) {
       try {
+        console.log('Submitting event:', JSON.stringify({ ...dbBody, status }));
         await dbFetch('events', { method:'POST', body: { ...dbBody, status }, prefer:'return=minimal' });
         // Reload all events from DB to pick up the new one with its server-assigned id
         await loadEventsFromDb();
-      } catch(e) { errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
+      } catch(e) { console.error('Submit error:', e); errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
     } else {
       eventData.id = Date.now().toString();
       state.events.push(eventData);
