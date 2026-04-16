@@ -302,6 +302,21 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
       </div>
 
       <div class="admin-section">
+        <h3>Import event from image</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Upload a screenshot or photo of an event announcement — flyer, Instagram post, etc. Claude will extract the details and pre-fill the submission form for you to review.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label class="btn primary sm" style="cursor:pointer">
+            Choose image
+            <input type="file" id="import-image-input" accept="image/*" style="display:none" onchange="importFromImage(this)"/>
+          </label>
+          <span id="import-status" style="font-size:13px;color:var(--text-muted)"></span>
+        </div>
+        <div id="import-preview" style="display:none;margin-top:10px">
+          <img id="import-preview-img" style="max-width:200px;max-height:200px;border-radius:var(--radius-md);border:0.5px solid var(--border)"/>
+        </div>
+      </div>
+
+      <div class="admin-section">
         <h3>Site message</h3>
         <textarea class="info-edit-area" id="info-text-editor" placeholder="Write a message for visitors…"></textarea>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
@@ -907,6 +922,95 @@ document.addEventListener('change', e => { if (e.target.id==='r-monthly-mode') u
 
 let editingId = null;
 
+async function importFromImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('import-status');
+  const previewEl = document.getElementById('import-preview');
+  const previewImg = document.getElementById('import-preview-img');
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = e => {
+    previewImg.src = e.target.result;
+    previewEl.style.display = '';
+  };
+  reader.readAsDataURL(file);
+
+  statusEl.textContent = 'Reading image…';
+  statusEl.style.color = 'var(--text-muted)';
+
+  try {
+    // Convert image to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+    statusEl.textContent = 'Extracting event details…';
+
+    // Call our server-side proxy so the Anthropic key stays out of the browser
+    const response = await fetch('/api/extract-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageBase64: base64,
+        mediaType: file.type,
+        year: new Date().getFullYear()
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || response.statusText);
+    }
+
+    const extracted = await response.json();
+
+    // Check we got something useful
+    const hasData = Object.values(extracted).some(v => v && String(v).trim());
+    if (!hasData) {
+      statusEl.textContent = '⚠️ No event details found in image. Try a clearer image.';
+      statusEl.style.color = 'var(--warning-text)';
+      return;
+    }
+
+    statusEl.textContent = '✓ Details extracted — review the form below.';
+    statusEl.style.color = 'var(--success-text)';
+
+    // Open the submit modal pre-filled with extracted data
+    editingId = null;
+    document.getElementById('submit-modal-title').textContent = 'Review imported event';
+    document.getElementById('submit-modal-btn').textContent = 'Submit event';
+    document.getElementById('submit-form-body').style.display = '';
+    document.getElementById('submit-success').style.display = 'none';
+    document.getElementById('submit-error').style.display = 'none';
+
+    document.getElementById('f-name').value = extracted.name || '';
+    document.getElementById('f-date').value = extracted.date || '';
+    buildTimeOptions('f-time', extracted.time || '12:00');
+    buildTimeOptions('f-time-end', extracted.timeEnd || '');
+    document.getElementById('f-location').value = extracted.location || '';
+    document.getElementById('f-organizer').value = extracted.organizer || '';
+    document.getElementById('f-url').value = extracted.url || '';
+    document.getElementById('f-desc').value = extracted.desc || '';
+    document.getElementById('r-type').value = 'none';
+    onRecurTypeChange();
+
+    document.getElementById('submit-modal').style.display = 'flex';
+
+    // Reset the file input for next use
+    input.value = '';
+
+  } catch(e) {
+    statusEl.textContent = '✗ Error: ' + e.message;
+    statusEl.style.color = 'var(--danger-text)';
+  }
+}
+
 function openSubmitModal() {
   editingId = null;
   document.getElementById('submit-modal-title').textContent = 'Submit an event';
@@ -1006,8 +1110,9 @@ async function submitEvent() {
     const eventData = { name, date, time, timeEnd, location, organizer, url, desc, status, recurType, recurMonthlyMode, recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
     if (db) {
       try {
-        const row = await dbFetch('events', { method:'POST', body: { ...dbBody, status } });
-        if (row && row[0]) state.events.push(normalizeDbRow(row[0]));
+        await dbFetch('events', { method:'POST', body: { ...dbBody, status }, prefer:'return=minimal' });
+        // Reload all events from DB to pick up the new one with its server-assigned id
+        await loadEventsFromDb();
       } catch(e) { errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
     } else {
       eventData.id = Date.now().toString();
