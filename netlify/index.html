@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23004C54'/%3E%3Cpath d='M10 22.5C10 22.5 9 22 9 20.5L9 17C9 17 8.2 16.8 8 16C7.8 15.2 8 14.5 8.5 14L9 13.5L9 12.5C9 11.7 9.7 11 10.5 11C10.7 11 10.9 11.05 11.1 11.1C11.3 10.5 11.9 10 12.6 10C12.9 10 13.2 10.1 13.4 10.25C13.65 9.7 14.2 9.3 14.8 9.3C15.2 9.3 15.6 9.45 15.85 9.7C16.1 9.15 16.65 8.8 17.3 8.8C18.1 8.8 18.8 9.45 18.8 10.3L18.8 12.8C19 12.7 19.3 12.6 19.6 12.6C20.4 12.6 21 13.2 21 14L21 16.5C21 18 20.2 19.3 19 20.1L19 22.5Z' fill='%23A5ACAF'/%3E%3C/svg%3E">
+<title>Philly Actions Calendar</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #004C54; --green-mid: #1a6b74; --green-light: #e0f0f2;
+  --silver: #A5ACAF; --black: #101820;
+  --text: #1a1a1a; --text-muted: #6b7280;
+  --border: rgba(0,0,0,0.12); --border-med: rgba(0,0,0,0.22);
+  --bg: #ffffff; --bg2: #f7f8f9;
+  --radius-md: 8px; --radius-lg: 12px;
+  --success-bg:#d1fae5; --success-text:#065f46;
+  --warning-bg:#fef3c7; --warning-text:#92400e;
+  --danger-bg:#fee2e2; --danger-text:#991b1b;
+}
+@media(prefers-color-scheme:dark){:root{
+  --text:#f0f0f0; --text-muted:#9ca3af;
+  --border:rgba(255,255,255,0.12); --border-med:rgba(255,255,255,0.22);
+  --bg:#1c1c1e; --bg2:#2c2c2e;
+  --success-bg:#064e3b; --success-text:#6ee7b7;
+  --warning-bg:#78350f; --warning-text:#fcd34d;
+  --danger-bg:#7f1d1d; --danger-text:#fca5a5;
+}}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); color: var(--text); min-height: 100vh; }
+#app { max-width: 960px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+/* Header */
+.site-header { background: var(--green); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.site-title { color: #fff; font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+.site-title .accent { color: var(--silver); }
+.site-subtitle { color: rgba(255,255,255,0.65); font-size: 12px; margin-top: 3px; }
+.header-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.nav-btn { padding: 7px 15px; border-radius: var(--radius-md); border: 0.5px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+.nav-btn:hover { background: rgba(255,255,255,0.22); }
+.nav-btn.active { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.6); }
+.btn-submit { background: var(--silver); color: var(--black); border: none; padding: 7px 15px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-submit:hover { background: #c5cdd1; }
+.kebab-wrap { position: relative; }
+.kebab-btn { background: rgba(255,255,255,0.1); border: 0.5px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); color: #fff; padding: 7px 11px; cursor: pointer; font-size: 18px; line-height: 1; }
+.kebab-btn:hover { background: rgba(255,255,255,0.22); }
+.kebab-menu { position: absolute; right: 0; top: calc(100% + 6px); background: var(--bg); border: 0.5px solid var(--border-med); border-radius: var(--radius-md); min-width: 150px; z-index: 50; }
+.kebab-menu.hidden { display: none; }
+.kebab-item { padding: 9px 14px; font-size: 13px; cursor: pointer; color: var(--text); display: block; border-bottom: 0.5px solid var(--border); }
+.kebab-item:last-child { border-bottom: none; }
+.kebab-item:hover { background: var(--bg2); }
+
+/* Info banner */
+.info-banner { background: var(--green-light); border: 0.5px solid #a8d4d9; border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem; font-size: 13px; color: var(--green); line-height: 1.6; }
+.info-banner.hidden { display: none; }
+
+/* DB status */
+.db-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin-bottom: 1rem; padding: 6px 10px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-md); }
+.db-dot-corner { position: fixed; bottom: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--silver); z-index: 999; transition: background 0.3s; cursor: default; }
+.db-dot-corner.connected { background: #22c55e; }
+.db-dot-corner.error { background: #ef4444; }
+
+/* Sections */
+.section { display: none; }
+.section.active { display: block; }
+
+/* Buttons */
+.btn { padding: 6px 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border-med); background: var(--bg); color: var(--text); font-size: 13px; cursor: pointer; transition: background 0.15s; }
+.btn:hover { background: var(--bg2); }
+.btn.sm { padding: 4px 10px; font-size: 12px; }
+.btn.primary { background: var(--green); color: #fff; border-color: var(--green-mid); }
+.btn.primary:hover { background: var(--green-mid); }
+.btn.danger { background: var(--danger-bg); color: var(--danger-text); border-color: transparent; }
+.btn.approve { background: var(--success-bg); color: var(--success-text); border-color: transparent; }
+
+/* Calendar */
+.cal-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+.cal-month { font-size: 17px; font-weight: 600; flex: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.cal-day-header { background: var(--green); color: rgba(255,255,255,0.85); padding: 7px 4px; text-align: center; font-size: 11px; font-weight: 600; }
+.cal-cell { min-height: 84px; padding: 5px; border-right: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border); background: var(--bg); }
+.cal-cell:nth-child(7n) { border-right: none; }
+.cal-cell.other-month { background: var(--bg2); }
+.cal-cell.today { background: var(--green-light); }
+.cal-date { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 3px; cursor: pointer; }
+.cal-cell.today .cal-date { color: var(--green); font-weight: 700; }
+.event-chip { font-size: 10px; padding: 2px 5px; border-radius: 4px; background: var(--green); color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; display: block; }
+.event-chip:hover { background: var(--green-mid); }
+.event-chip.recurring { background: var(--green-mid); opacity: 0.85; }
+.more-chip { font-size: 10px; color: var(--text-muted); cursor: pointer; }
+
+/* List */
+.view-tabs { display: flex; gap: 4px; margin-bottom: 1rem; flex-wrap: wrap; }
+.view-tab { padding: 6px 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border); background: var(--bg2); font-size: 13px; cursor: pointer; color: var(--text-muted); }
+.view-tab.active { background: var(--green); color: #fff; border-color: var(--green-mid); }
+.event-list { display: flex; flex-direction: column; gap: 10px; }
+.event-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; display: flex; gap: 16px; align-items: flex-start; cursor: pointer; }
+.event-card:hover { border-color: var(--border-med); }
+.event-date-badge { min-width: 48px; text-align: center; background: var(--green-light); border-radius: var(--radius-md); padding: 6px 4px; flex-shrink: 0; }
+.event-date-badge .month { font-size: 10px; font-weight: 600; color: var(--green); text-transform: uppercase; }
+.event-date-badge .day { font-size: 22px; font-weight: 600; color: var(--green); line-height: 1; }
+.event-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.event-meta { font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.event-meta span::before { content: "· "; }
+.event-meta span:first-child::before { content: ""; }
+.recur-badge { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 20px; background: var(--green-light); color: var(--green); margin-left: 6px; vertical-align: middle; }
+.event-link { font-size: 12px; color: var(--green); text-decoration: none; margin-top: 4px; display: inline-block; }
+.empty-state { padding: 2rem; text-align: center; color: var(--text-muted); font-size: 14px; }
+
+/* Modals */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+.modal { background: var(--bg); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 540px; width: 100%; margin: auto; }
+.modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 1.25rem; }
+.form-row { margin-bottom: 13px; }
+.form-row label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+.form-row input, .form-row textarea, .form-row select {
+  width: 100%; padding: 8px 10px; border: 0.5px solid var(--border-med);
+  border-radius: var(--radius-md); background: var(--bg); color: var(--text);
+  font-size: 14px; font-family: inherit;
+}
+.form-row input:focus, .form-row textarea:focus, .form-row select:focus { outline: none; border-color: var(--green); }
+.form-row textarea { resize: vertical; min-height: 66px; }
+.form-row-inline { display: flex; gap: 10px; }
+.form-row-inline .form-row { flex: 1; }
+.recur-box { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 13px; }
+.recur-box .recur-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 13px; }
+.recur-box select, .recur-box input[type=date] { padding: 5px 8px; border: 0.5px solid var(--border-med); border-radius: var(--radius-md); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; }
+.recur-box label { font-size: 13px; color: var(--text-muted); }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem; }
+.success-msg { background: var(--success-bg); color: var(--success-text); border-radius: var(--radius-md); padding: 12px 16px; font-size: 14px; }
+.error-msg { background: var(--danger-bg); color: var(--danger-text); border-radius: var(--radius-md); padding: 8px 14px; font-size: 13px; margin-bottom: 12px; }
+.section-divider { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin: 1rem 0 0.5rem; }
+
+/* Detail modal */
+.detail-field { margin-bottom: 10px; }
+.detail-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.detail-value { font-size: 14px; }
+
+/* Admin */
+.admin-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+.admin-top h2 { font-size: 18px; font-weight: 600; }
+.admin-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.toggle { position: relative; width: 38px; height: 21px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: var(--silver); border-radius: 11px; cursor: pointer; transition: background 0.2s; }
+.toggle-slider::before { content: ""; position: absolute; width: 15px; height: 15px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+.toggle input:checked + .toggle-slider { background: var(--green); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(17px); }
+.admin-section { margin-bottom: 2rem; }
+.admin-section h3 { font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; border-bottom: 0.5px solid var(--border); padding-bottom: 8px; }
+.admin-event-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); flex-wrap: wrap; }
+.admin-event-info { flex: 1; min-width: 180px; }
+.admin-event-info .name { font-size: 14px; font-weight: 600; }
+.admin-event-info .meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge.pending { background: var(--warning-bg); color: var(--warning-text); }
+.badge.approved { background: var(--success-bg); color: var(--success-text); }
+.badge.rejected { background: var(--danger-bg); color: var(--danger-text); }
+.admin-login { max-width: 340px; margin: 2rem auto; }
+.info-edit-area { width: 100%; min-height: 110px; padding: 10px; border: 0.5px solid var(--border-med); border-radius: var(--radius-md); font-size: 13px; font-family: inherit; background: var(--bg); color: var(--text); resize: vertical; }
+.status-pill { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: var(--green-light); color: var(--green); display: inline-block; }
+
+/* Supabase config panel */
+.config-box { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 1.5rem; }
+.config-box h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.config-box input { width: 100%; padding: 7px 9px; border: 0.5px solid var(--border-med); border-radius: var(--radius-md); background: var(--bg); color: var(--text); font-size: 12px; font-family: monospace; margin-bottom: 8px; }
+.config-box input:focus { outline: none; border-color: var(--green); }
+
+@media(max-width:600px){
+  .site-header { flex-direction: column; align-items: flex-start; }
+  .cal-cell { min-height: 54px; }
+  .event-card { flex-direction: column; gap: 8px; }
+  .form-row-inline { flex-direction: column; gap: 0; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="site-header">
+    <div>
+      <div class="site-title">Philly <span class="accent">Actions</span> Calendar</div>
+      <div class="site-subtitle">Protests, rallies, marches &amp; direct actions in Philadelphia</div>
+    </div>
+    <div class="header-nav">
+      <button class="nav-btn active" id="nav-calendar" onclick="showSection('calendar',this)">Calendar</button>
+      <button class="nav-btn" id="nav-list" onclick="showSection('list',this)">List</button>
+      <button class="btn-submit" onclick="openSubmitModal()">+ Submit Event</button>
+      <div class="kebab-wrap">
+        <button class="kebab-btn" onclick="toggleKebab()" title="More">&#8942;</button>
+        <div class="kebab-menu hidden" id="kebab-menu">
+          <span class="kebab-item" onclick="closeKebab();showSection('admin',null)">Admin</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="db-bar" class="db-dot-corner" style="display:none" title=""></div>
+
+  <div id="info-banner" class="info-banner hidden"></div>
+
+  <div id="sec-calendar" class="section active">
+    <div class="cal-nav">
+      <button class="btn" onclick="changeMonth(-1)">← Prev</button>
+      <div class="cal-month" id="cal-month-label"></div>
+      <button class="btn" onclick="changeMonth(1)">Next →</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+
+  <div id="sec-list" class="section">
+    <div class="view-tabs">
+      <div class="view-tab active" onclick="setListFilter('upcoming',this)">Upcoming</div>
+      <div class="view-tab" onclick="setListFilter('month',this)">This month</div>
+      <div class="view-tab" onclick="setListFilter('all',this)">All events</div>
+    </div>
+    <div class="event-list" id="event-list"></div>
+  </div>
+
+  <div id="sec-admin" class="section">
+    <div id="admin-login-view">
+      <div class="admin-login">
+        <h2>Admin access</h2>
+        <div id="login-error" class="error-msg" style="display:none">Incorrect password</div>
+        <div class="form-row"><label>Password</label>
+          <input type="password" id="admin-pass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <button class="btn primary" onclick="doLogin()">Sign in</button>
+      </div>
+    </div>
+    <div id="admin-panel-view" style="display:none">
+      <div class="admin-top">
+        <h2>Admin panel</h2>
+        <div class="admin-controls">
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="approval-toggle" onchange="toggleApproval(this)"><span class="toggle-slider"></span></label>
+            <span>Require approval</span>
+          </div>
+          <span id="approval-status-pill" class="status-pill"></span>
+          <button class="btn sm" onclick="adminLogout()">Sign out</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3>Database connection</h3>
+        <div class="config-box">
+          <h4>Supabase credentials</h4>
+          <input type="text" id="cfg-url" placeholder="Supabase project URL  (https://xxxx.supabase.co)" />
+          <input type="text" id="cfg-key" placeholder="Supabase anon/public key" />
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn primary sm" onclick="saveDbConfig()">Connect</button>
+            <button class="btn sm" onclick="clearDbConfig()">Disconnect</button>
+            <span id="cfg-status" style="font-size:12px;color:var(--text-muted)"></span>
+          </div>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:8px">
+            Credentials are saved in your browser only. See setup instructions below.
+          </p>
+        </div>
+        <details style="font-size:13px;color:var(--text-muted);line-height:1.6">
+          <summary style="cursor:pointer;font-weight:600;color:var(--text);margin-bottom:6px">Supabase setup instructions</summary>
+          <ol style="padding-left:1.2rem;margin-top:8px">
+            <li>Go to <strong>supabase.com</strong> and create a free account &amp; project.</li>
+            <li>In your project, go to <strong>SQL Editor</strong> and run the schema below.</li>
+            <li>Go to <strong>Project Settings → API</strong> and copy your Project URL and <code>anon</code> public key.</li>
+            <li>Paste them into the fields above and click Connect.</li>
+          </ol>
+          <pre style="background:var(--bg2);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto;margin-top:10px;border:0.5px solid var(--border)">CREATE TABLE events (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  date date NOT NULL,
+  time time NOT NULL,
+  location text NOT NULL,
+  organizer text NOT NULL,
+  url text,
+  description text,
+  status text DEFAULT 'pending',
+  time_end time,
+  recur_type text DEFAULT 'none',
+  recur_monthly_mode text,
+  recur_end_date date,
+  recur_no_end boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Allow public read of approved events
+CREATE POLICY "public read approved" ON events
+  FOR SELECT USING (status = 'approved');
+
+-- Allow public insert
+CREATE POLICY "public insert" ON events
+  FOR INSERT WITH CHECK (true);
+
+-- Allow all for service role (admin uses anon key + RLS bypass via admin toggle)
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+
+-- For admin operations, you'll temporarily disable RLS or use service role key.
+-- Simplest approach: also add this policy to allow all operations (then protect via app password):
+CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
+        </details>
+      </div>
+
+      <div class="admin-section">
+        <h3>Import event from image</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Upload a screenshot or photo of an event announcement — flyer, Instagram post, etc. Claude will extract the details and pre-fill the submission form for you to review.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label class="btn primary sm" style="cursor:pointer">
+            Choose image
+            <input type="file" id="import-image-input" accept="image/*" style="display:none" onchange="importFromImage(this)"/>
+          </label>
+          <span id="import-status" style="font-size:13px;color:var(--text-muted)"></span>
+        </div>
+        <div id="import-preview" style="display:none;margin-top:10px">
+          <img id="import-preview-img" style="max-width:200px;max-height:200px;border-radius:var(--radius-md);border:0.5px solid var(--border)"/>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3>Site message</h3>
+        <textarea class="info-edit-area" id="info-text-editor" placeholder="Write a message for visitors…"></textarea>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <button class="btn primary sm" onclick="saveInfoText()">Save message</button>
+          <span id="info-save-status" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3>Pending review</h3>
+        <div id="admin-pending-list"></div>
+      </div>
+      <div class="admin-section">
+        <h3>Approved events</h3>
+        <div id="admin-approved-list"></div>
+      </div>
+      <div class="admin-section">
+        <h3>Rejected</h3>
+        <div id="admin-rejected-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Submit modal -->
+<div id="submit-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('submit-modal')">
+  <div class="modal">
+    <h2 id="submit-modal-title">Submit an event</h2>
+    <div id="submit-form-body">
+      <div class="form-row"><label>Event name *</label><input type="text" id="f-name" placeholder="e.g. Rally for Housing Justice"/></div>
+      <div class="form-row-inline">
+        <div class="form-row"><label>Date *</label><input type="date" id="f-date" onchange="onDateChange()"/></div>
+        <div class="form-row"><label>Start time *</label><select id="f-time" onchange="seedEndTime()"></select></div>
+        <div class="form-row"><label>End time</label><select id="f-time-end"></select></div>
+      </div>
+      <div class="form-row"><label>Location / Address *</label><input type="text" id="f-location" placeholder="e.g. City Hall, 1400 JFK Blvd"/></div>
+      <div class="form-row"><label>Organizer / Organization *</label><input type="text" id="f-organizer" placeholder="e.g. Philly Tenants Union"/></div>
+      <div class="form-row"><label>More info URL</label><input type="url" id="f-url" placeholder="https://…"/></div>
+      <div class="form-row"><label>Description</label><textarea id="f-desc" placeholder="Brief description…"></textarea></div>
+
+      <!-- Recurring -->
+      <div class="section-divider">Recurrence</div>
+      <div class="recur-box">
+        <div style="display:flex;align-items:center;gap:10px">
+          <label style="font-size:13px;color:var(--text-muted)">Repeat:</label>
+          <select id="r-type" onchange="onRecurTypeChange()" style="padding:5px 8px;border:0.5px solid var(--border-med);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">
+            <option value="none">Does not repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        <div id="r-monthly-mode-row" class="recur-row" style="display:none">
+          <label>Monthly on:</label>
+          <select id="r-monthly-mode" style="padding:5px 8px;border:0.5px solid var(--border-med);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">
+            <option value="date">Same date each month</option>
+            <option value="weekday">Same weekday each month</option>
+          </select>
+          <span id="r-monthly-desc" style="color:var(--text-muted);font-size:12px"></span>
+        </div>
+
+        <div id="r-end-row" class="recur-row" style="display:none">
+          <label>Ends:</label>
+          <select id="r-end-type" onchange="onEndTypeChange()" style="padding:5px 8px;border:0.5px solid var(--border-med);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">
+            <option value="date">On date</option>
+            <option value="never">Never</option>
+          </select>
+          <input type="date" id="r-end-date" style="display:none;padding:5px 8px;border:0.5px solid var(--border-med);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit"/>
+        </div>
+      </div>
+
+      <div id="submit-error" class="error-msg" style="display:none"></div>
+      <div class="form-actions">
+        <button class="btn" onclick="closeModal('submit-modal')">Cancel</button>
+        <button class="btn primary" id="submit-modal-btn" onclick="submitEvent()">Submit event</button>
+      </div>
+    </div>
+    <div id="submit-success" style="display:none">
+      <div class="success-msg" id="submit-success-msg"></div>
+      <div class="form-actions"><button class="btn primary" onclick="closeModal('submit-modal')">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Day view modal -->
+<div id="day-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('day-modal')">
+  <div class="modal">
+    <div id="day-modal-body"></div>
+    <div class="form-actions"><button class="btn" onclick="closeModal('day-modal')">Close</button></div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div id="detail-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('detail-modal')">
+  <div class="modal">
+    <div id="detail-body"></div>
+    <div class="form-actions"><button class="btn" onclick="closeModal('detail-modal')">Close</button></div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// CONFIGURATION — change before deploying
+// ================================================================
+const ADMIN_PASS = 'TestPassword123';
+const STORAGE_KEY = 'philly-actions-v2';
+const DEFAULT_SUPABASE_URL = 'https://sanlrxdqjylilagbwuaj.supabase.co';   // ← your URL
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_D1mhucz-odIUEoVy_SOnGA_fg5jO7XT';                      // ← your anon key
+// ================================================================
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const ORDINALS = ['first','second','third','fourth','fifth'];
+
+let db = null; // Supabase client (set when credentials saved)
+let state = {
+  events: [],
+  requireApproval: false,
+  calYear: new Date().getFullYear(),
+  calMonth: new Date().getMonth(),
+  listFilter: 'upcoming',
+  adminLoggedIn: false,
+  infoText: 'Welcome to Philly Actions Calendar — a community resource for protests, rallies, marches, and direct actions in Philadelphia.\n\nTo submit an event, click "+ Submit Event". Questions? Email phillyactions@example.com.',
+  dbUrl: '', dbKey: ''
+};
+
+// ================================================================
+// PERSISTENCE — localStorage + Supabase
+// ================================================================
+function loadLocalState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (saved) {
+      if (saved.requireApproval !== undefined) state.requireApproval = saved.requireApproval;
+      if (saved.infoText !== undefined) state.infoText = saved.infoText;
+      if (saved.dbUrl) state.dbUrl = saved.dbUrl;
+      if (saved.dbKey) state.dbKey = saved.dbKey;
+      if (saved.events) state.events = saved.events;
+    }
+  } catch(e) {}
+}
+
+function saveLocalState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      requireApproval: state.requireApproval,
+      infoText: state.infoText,
+      dbUrl: state.dbUrl,
+      dbKey: state.dbKey,
+      events: db ? [] : state.events // don't cache events if using DB
+    }));
+  } catch(e) {}
+}
+
+// ================================================================
+// SUPABASE
+// ================================================================
+function initSupabase(url, key) {
+  if (!url || !key) return false;
+  try {
+    // Minimal Supabase REST client (no SDK needed)
+    db = { url: url.replace(/\/$/, ''), key };
+    return true;
+  } catch(e) { return false; }
+}
+
+async function dbFetch(path, opts = {}) {
+  if (!db) return null;
+  let res;
+  try {
+    res = await fetch(`${db.url}/rest/v1/${path}`, {
+      headers: {
+        'apikey': db.key,
+        'Authorization': `Bearer ${db.key}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(opts.method && opts.method !== 'GET' ? {'Prefer': opts.prefer || 'return=representation'} : {}),
+        ...opts.headers
+      },
+      method: opts.method || 'GET',
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+  } catch(networkErr) {
+    throw new Error(`Network error — could not reach Supabase. Check the URL is correct. (${networkErr.message})`);
+  }
+  console.log('Supabase response status:', res.status, res.statusText, 'for', opts.method||'GET');
+  if (!res.ok) {
+    let errText = '';
+    try { errText = await res.text(); } catch(e) {}
+    let errMsg = `HTTP ${res.status}`;
+    if (errText) {
+      try { const j = JSON.parse(errText); errMsg += ': ' + (j.message || j.hint || j.error || errText); }
+      catch(e) { errMsg += ': ' + errText.slice(0, 200); }
+    }
+    throw new Error(errMsg);
+  }
+  if (opts.method === 'DELETE' || opts.method === 'PATCH' || opts.method === 'POST' || res.status === 204 || res.status === 201) return null;
+  return res.json();
+}
+
+async function loadEventsFromDb() {
+  try {
+    setDbStatus('loading');
+    const rows = await dbFetch('events?order=date.asc');
+    state.events = (rows || []).map(normalizeDbRow);
+    setDbStatus('connected');
+    return true;
+  } catch(e) {
+    setDbStatus('error', e.message);
+    return false;
+  }
+}
+
+function normalizeDbRow(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    date: r.date,
+    time: r.time ? r.time.slice(0,5) : '',
+    timeEnd: r.time_end ? r.time_end.slice(0,5) : '',
+    location: r.location,
+    organizer: r.organizer,
+    url: r.url || '',
+    desc: r.description || '',
+    status: r.status,
+    recurType: r.recur_type || 'none',
+    recurMonthlyMode: r.recur_monthly_mode || 'date',
+    recurEndDate: r.recur_end_date || '',
+    recurNoEnd: r.recur_no_end || false
+  };
+}
+
+function setDbStatus(state_, msg) {
+  const dot = document.getElementById('db-bar');
+  dot.style.display = 'block';
+  dot.className = 'db-dot-corner' + (state_==='connected' ? ' connected' : state_==='error' ? ' error' : '');
+  dot.title = state_==='error' ? 'Database error: ' + (msg||'unknown') : '';
+}
+
+async function saveDbConfig() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  const st = document.getElementById('cfg-status');
+  if (!url || !key) { st.textContent = 'Please enter both URL and key.'; return; }
+  if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+    st.textContent = '✗ URL should look like https://xxxx.supabase.co'; st.style.color='var(--danger-text)'; return;
+  }
+  state.dbUrl = url; state.dbKey = key;
+  initSupabase(url, key);
+  st.textContent = 'Testing connection…';
+  st.style.color = 'var(--text-muted)';
+  try {
+    setDbStatus('loading');
+    const rows = await dbFetch('events?order=date.asc&limit=200');
+    state.events = rows.map(normalizeDbRow);
+    setDbStatus('connected');
+    st.textContent = '✓ Connected!';
+    st.style.color = 'var(--success-text)';
+    saveLocalState(); renderAll(); renderAdmin();
+  } catch(e) {
+    db = null;
+    document.getElementById('db-bar').style.display = 'none';
+    st.style.color = 'var(--danger-text)';
+    st.textContent = '✗ ' + e.message;
+  }
+}
+
+function clearDbConfig() {
+  db = null; state.dbUrl = ''; state.dbKey = '';
+  document.getElementById('cfg-url').value = '';
+  document.getElementById('cfg-key').value = '';
+  document.getElementById('cfg-status').textContent = 'Disconnected.';
+  document.getElementById('db-bar').style.display = 'none';
+  saveLocalState();
+}
+
+// ================================================================
+// RECURRING EVENT EXPANSION
+// ================================================================
+function expandRecurringEvents(events, startDate, endDate) {
+  // startDate / endDate are Date objects defining the window to render
+  const result = [];
+  const end = endDate;
+
+  for (const ev of events) {
+    if (ev.recurType === 'none' || !ev.recurType) {
+      const d = parseDate(ev.date);
+      if (d >= startDate && d <= end) result.push({ ...ev, _originalId: ev.id });
+      continue;
+    }
+
+    const originDate = parseDate(ev.date);
+    const recurEnd = ev.recurNoEnd ? end :
+                     ev.recurEndDate ? parseDate(ev.recurEndDate) : end;
+    const effectiveEnd = recurEnd < end ? recurEnd : end;
+
+    let cursor = new Date(originDate);
+    let safety = 0;
+
+    while (cursor <= effectiveEnd && safety++ < 1000) {
+      if (cursor >= startDate && cursor <= end) {
+        result.push({
+          ...ev,
+          date: formatDateISO(cursor),
+          _originalId: ev.id,
+          _isRecurrence: cursor.getTime() !== originDate.getTime()
+        });
+      }
+      // Advance cursor
+      if (ev.recurType === 'daily') {
+        cursor = new Date(cursor); cursor.setDate(cursor.getDate() + 1);
+      } else if (ev.recurType === 'weekly') {
+        cursor = new Date(cursor); cursor.setDate(cursor.getDate() + 7);
+      } else if (ev.recurType === 'monthly') {
+        cursor = nextMonthlyOccurrence(cursor, originDate, ev.recurMonthlyMode);
+        if (!cursor) break;
+      }
+    }
+  }
+  return result;
+}
+
+function nextMonthlyOccurrence(current, origin, mode) {
+  const next = new Date(current);
+  next.setMonth(next.getMonth() + 1);
+  if (!mode || mode === 'date') {
+    // Same date of month
+    next.setDate(origin.getDate());
+    // Handle months with fewer days
+    if (next.getDate() !== origin.getDate()) {
+      next.setDate(0); // last day of intended month
+    }
+  } else {
+    // Same weekday e.g. "third Monday"
+    const targetDow = origin.getDay();
+    const weekNum = Math.floor((origin.getDate() - 1) / 7); // 0-indexed
+    next.setDate(1);
+    let dow = next.getDay();
+    let diff = (targetDow - dow + 7) % 7;
+    next.setDate(1 + diff + weekNum * 7);
+    // If overflowed into next month, go to last occurrence
+    if (next.getMonth() !== (current.getMonth() + 1) % 12) {
+      next.setDate(next.getDate() - 7);
+    }
+  }
+  return next;
+}
+
+function describeRecurrence(ev) {
+  if (!ev.recurType || ev.recurType === 'none') return '';
+  const origin = parseDate(ev.date);
+  let desc = '';
+  if (ev.recurType === 'daily') desc = 'Daily';
+  else if (ev.recurType === 'weekly') desc = `Weekly on ${DAYS_SHORT[origin.getDay()]}s`;
+  else if (ev.recurType === 'monthly') {
+    if (!ev.recurMonthlyMode || ev.recurMonthlyMode === 'date') {
+      desc = `Monthly on the ${ordinal(origin.getDate())}`;
+    } else {
+      const weekNum = Math.floor((origin.getDate() - 1) / 7);
+      desc = `Monthly on the ${ORDINALS[weekNum]} ${DAYS_SHORT[origin.getDay()]}`;
+    }
+  }
+  if (ev.recurNoEnd) desc += ' · no end date';
+  else if (ev.recurEndDate) desc += ` · until ${formatDateShort(ev.recurEndDate)}`;
+  return desc;
+}
+
+function ordinal(n) {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+// ================================================================
+// RENDERING
+// ================================================================
+function renderAll() {
+  renderInfoBanner();
+  renderCalendar();
+  renderList();
+}
+
+function renderInfoBanner() {
+  const el = document.getElementById('info-banner');
+  if (state.infoText && state.infoText.trim()) {
+    el.innerHTML = state.infoText.trim().replace(/\n/g,'<br>');
+    el.classList.remove('hidden');
+  } else { el.classList.add('hidden'); }
+}
+
+function renderCalendar() {
+  const y = state.calYear, m = state.calMonth;
+  document.getElementById('cal-month-label').textContent = MONTHS[m] + ' ' + y;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  DAYS_SHORT.forEach(d => { const h=document.createElement('div'); h.className='cal-day-header'; h.textContent=d; grid.appendChild(h); });
+
+  const first = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const daysInPrev = new Date(y, m, 0).getDate();
+  const today = new Date();
+
+  // Expand recurring events for a generous window
+  const windowStart = new Date(y, m-1, 1);
+  const windowEnd = new Date(y, m+2, 0);
+  const approved = state.events.filter(e => e.status === 'approved');
+  const expanded = expandRecurringEvents(approved, windowStart, windowEnd);
+  const evsByDate = {};
+  expanded.forEach(e => { (evsByDate[e.date] = evsByDate[e.date]||[]).push(e); });
+
+  const rows = Math.ceil((first+daysInMonth)/7)*7;
+  for (let i = 0; i < rows; i++) {
+    const cell = document.createElement('div'); cell.className='cal-cell';
+    let dayNum, dateStr, isOther=false;
+    if (i < first) {
+      dayNum=daysInPrev-first+i+1; isOther=true;
+      const pm=m===0?11:m-1, py=m===0?y-1:y;
+      dateStr=`${py}-${pad(pm+1)}-${pad(dayNum)}`;
+    } else if (i >= first+daysInMonth) {
+      dayNum=i-first-daysInMonth+1; isOther=true;
+      const nm=m===11?0:m+1, ny=m===11?y+1:y;
+      dateStr=`${ny}-${pad(nm+1)}-${pad(dayNum)}`;
+    } else {
+      dayNum=i-first+1;
+      dateStr=`${y}-${pad(m+1)}-${pad(dayNum)}`;
+    }
+    if (isOther) cell.classList.add('other-month');
+    if (!isOther && today.getFullYear()===y && today.getMonth()===m && today.getDate()===dayNum) cell.classList.add('today');
+    const de=document.createElement('div'); de.className='cal-date'; de.textContent=dayNum;
+    de.onclick=()=>showDayView(dateStr); cell.appendChild(de);
+    const evs=evsByDate[dateStr]||[];
+    evs.slice(0,2).forEach(ev => {
+      const c=document.createElement('div');
+      c.className='event-chip'+(ev._isRecurrence?' recurring':'');
+      c.textContent=ev.name; c.onclick=()=>showEventDetail(ev); cell.appendChild(c);
+    });
+    if (evs.length>2) { const mc=document.createElement('div'); mc.className='more-chip'; mc.textContent=`+${evs.length-2} more`; mc.onclick=()=>showEventDetail(evs[2]); cell.appendChild(mc); }
+    grid.appendChild(cell);
+  }
+}
+
+function changeMonth(d) {
+  state.calMonth+=d;
+  if(state.calMonth>11){state.calMonth=0;state.calYear++;}
+  if(state.calMonth<0){state.calMonth=11;state.calYear--;}
+  renderCalendar();
+}
+
+function setListFilter(f, el) {
+  state.listFilter=f;
+  document.querySelectorAll('.view-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+function renderList() {
+  const el = document.getElementById('event-list');
+  const now = new Date(); now.setHours(0,0,0,0);
+  const windowEnd = new Date(now); windowEnd.setFullYear(windowEnd.getFullYear()+2);
+  const approved = state.events.filter(e => e.status==='approved');
+  let expanded = expandRecurringEvents(approved, now, windowEnd);
+
+  expanded = expanded.filter(e => {
+    const d = parseDate(e.date);
+    if (state.listFilter==='upcoming') return d >= now;
+    if (state.listFilter==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    return true;
+  }).sort((a,b)=>a.date.localeCompare(b.date)).slice(0, 100);
+
+  if (!expanded.length) { el.innerHTML='<div class="empty-state">No events found.</div>'; return; }
+  el.innerHTML='';
+  expanded.forEach(ev => {
+    const p=ev.date.split('-'), d=parseDate(ev.date);
+    const recDesc = describeRecurrence(ev);
+    const card=document.createElement('div'); card.className='event-card';
+    card.innerHTML=`<div class="event-date-badge"><div class="month">${MONTHS[d.getMonth()].slice(0,3)}</div><div class="day">${parseInt(p[2])}</div></div>
+    <div class="event-info">
+      <h3>${esc(ev.name)}${recDesc?`<span class="recur-badge">↻ ${esc(recDesc.split('·')[0].trim())}</span>`:''}</h3>
+      <div class="event-meta"><span>${fmtTimeRange(ev.time, ev.timeEnd)}</span><span>${esc(ev.location)}</span><span>${esc(ev.organizer)}</span></div>
+      ${ev.desc?`<div style="font-size:13px;color:var(--text-muted);margin-top:5px">${esc(ev.desc)}</div>`:''}
+      ${ev.url?`<a class="event-link" href="${esc(ev.url)}" target="_blank" onclick="event.stopPropagation()">More info →</a>`:''}
+    </div>`;
+    card.onclick=()=>showEventDetail(ev);
+    el.appendChild(card);
+  });
+}
+
+function showDayView(dateStr) {
+  const windowStart = parseDate(dateStr);
+  const windowEnd = parseDate(dateStr);
+  const approved = state.events.filter(e => e.status === 'approved');
+  const evs = expandRecurringEvents(approved, windowStart, windowEnd)
+    .filter(e => e.date === dateStr)
+    .sort((a,b) => a.time.localeCompare(b.time));
+
+  const body = document.getElementById('day-modal-body');
+  const heading = `<h2 style="font-size:18px;font-weight:600;margin-bottom:1.25rem">${formatDateLong(dateStr)}</h2>`;
+
+  if (!evs.length) {
+    body.innerHTML = heading + '<p style="font-size:14px;color:var(--text-muted)">No events this day.</p>';
+  } else {
+    let html = heading;
+    evs.forEach(ev => {
+      const recDesc = describeRecurrence(ev);
+      html += `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">${esc(ev.name)}</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:3px">${fmtTimeRange(ev.time, ev.timeEnd)} &nbsp;·&nbsp; ${esc(ev.location)}</div>
+        <div style="font-size:13px;color:var(--text-muted)">${esc(ev.organizer)}${recDesc ? ` &nbsp;·&nbsp; ↻ ${esc(recDesc.split('·')[0].trim())}` : ''}</div>
+        ${ev.desc ? `<div style="font-size:13px;margin-top:5px">${esc(ev.desc)}</div>` : ''}
+        ${ev.url ? `<a class="event-link" href="${esc(ev.url)}" target="_blank" style="margin-top:4px;display:inline-block">More info →</a>` : ''}
+      </div>`;
+    });
+    body.innerHTML = html;
+  }
+  document.getElementById('day-modal').style.display = 'flex';
+}
+
+function showEventDetail(ev) {
+  const recDesc = describeRecurrence(ev);
+  document.getElementById('detail-body').innerHTML=`
+    <h2 style="font-size:18px;font-weight:600;margin-bottom:1.25rem">${esc(ev.name)}</h2>
+    <div class="detail-field"><div class="detail-label">Date &amp; time</div><div class="detail-value">${formatDateLong(ev.date)} at ${fmtTimeRange(ev.time, ev.timeEnd)}</div></div>
+    <div class="detail-field"><div class="detail-label">Location</div><div class="detail-value">${esc(ev.location)}</div></div>
+    <div class="detail-field"><div class="detail-label">Organizer</div><div class="detail-value">${esc(ev.organizer)}</div></div>
+    ${recDesc?`<div class="detail-field"><div class="detail-label">Recurrence</div><div class="detail-value">${esc(recDesc)}</div></div>`:''}
+    ${ev.desc?`<div class="detail-field"><div class="detail-label">Description</div><div class="detail-value">${esc(ev.desc)}</div></div>`:''}
+    ${ev.url?`<div class="detail-field"><div class="detail-label">More info</div><div class="detail-value"><a class="event-link" href="${esc(ev.url)}" target="_blank">${esc(ev.url)}</a></div></div>`:''}`;
+  document.getElementById('detail-modal').style.display='flex';
+}
+
+// ================================================================
+// SUBMIT FORM
+// ================================================================
+function onDateChange() {
+  updateMonthlyDesc();
+}
+
+function buildTimeOptions(selectId, selectedVal) {
+  const sel = document.getElementById(selectId);
+  const prev = selectedVal !== undefined ? selectedVal : sel.value;
+  sel.innerHTML = '';
+  // Add blank option for end time
+  if (selectId === 'f-time-end') {
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = '— none —';
+    sel.appendChild(opt);
+  }
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = fmtTime(val);
+      if (val === prev) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+  if (!prev && selectId === 'f-time') {
+    // default to 12:00 PM
+    sel.value = '12:00';
+  }
+}
+
+function seedEndTime() {
+  const start = document.getElementById('f-time').value;
+  const endEl = document.getElementById('f-time-end');
+  if (start && !endEl.value) {
+    endEl.value = start;
+  }
+}
+
+function onRecurTypeChange() {
+  const t = document.getElementById('r-type').value;
+  document.getElementById('r-monthly-mode-row').style.display = t==='monthly' ? 'flex' : 'none';
+  document.getElementById('r-end-row').style.display = t!=='none' ? 'flex' : 'none';
+  if (t !== 'none') {
+    document.getElementById('r-end-type').value = 'date';
+    onEndTypeChange();
+  }
+  updateMonthlyDesc();
+}
+
+function onEndTypeChange() {
+  const v = document.getElementById('r-end-type').value;
+  document.getElementById('r-end-date').style.display = v==='date' ? '' : 'none';
+}
+
+function updateMonthlyDesc() {
+  const dateVal = document.getElementById('f-date').value;
+  const mode = document.getElementById('r-monthly-mode').value;
+  const desc = document.getElementById('r-monthly-desc');
+  if (!dateVal) { desc.textContent = ''; return; }
+  const d = parseDate(dateVal);
+  if (mode === 'date') {
+    desc.textContent = `(every month on the ${ordinal(d.getDate())})`;
+  } else {
+    const weekNum = Math.floor((d.getDate()-1)/7);
+    desc.textContent = `(every month on the ${ORDINALS[weekNum]} ${DAYS_SHORT[d.getDay()]})`;
+  }
+}
+
+document.addEventListener('change', e => { if (e.target.id==='r-monthly-mode') updateMonthlyDesc(); });
+
+let editingId = null;
+
+async function importFromImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('import-status');
+  const previewEl = document.getElementById('import-preview');
+  const previewImg = document.getElementById('import-preview-img');
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = e => {
+    previewImg.src = e.target.result;
+    previewEl.style.display = '';
+  };
+  reader.readAsDataURL(file);
+
+  statusEl.textContent = 'Reading image…';
+  statusEl.style.color = 'var(--text-muted)';
+
+  try {
+    // Convert image to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+    statusEl.textContent = 'Extracting event details…';
+
+    // Call our server-side proxy so the Anthropic key stays out of the browser
+    const response = await fetch('/api/extract-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageBase64: base64,
+        mediaType: file.type,
+        year: new Date().getFullYear()
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || response.statusText);
+    }
+
+    const extracted = await response.json();
+
+    // Check we got something useful
+    const hasData = Object.values(extracted).some(v => v && String(v).trim());
+    if (!hasData) {
+      statusEl.textContent = '⚠️ No event details found in image. Try a clearer image.';
+      statusEl.style.color = 'var(--warning-text)';
+      return;
+    }
+
+    statusEl.textContent = '✓ Details extracted — review the form below.';
+    statusEl.style.color = 'var(--success-text)';
+
+    // Open the submit modal pre-filled with extracted data
+    editingId = null;
+    document.getElementById('submit-modal-title').textContent = 'Review imported event';
+    document.getElementById('submit-modal-btn').textContent = 'Submit event';
+    document.getElementById('submit-form-body').style.display = '';
+    document.getElementById('submit-success').style.display = 'none';
+    document.getElementById('submit-error').style.display = 'none';
+
+    document.getElementById('f-name').value = extracted.name || '';
+    document.getElementById('f-date').value = extracted.date || '';
+    buildTimeOptions('f-time', extracted.time || '12:00');
+    buildTimeOptions('f-time-end', extracted.timeEnd || '');
+    document.getElementById('f-location').value = extracted.location || '';
+    document.getElementById('f-organizer').value = extracted.organizer || '';
+    document.getElementById('f-url').value = extracted.url || '';
+    document.getElementById('f-desc').value = extracted.desc || '';
+    document.getElementById('r-type').value = 'none';
+    onRecurTypeChange();
+
+    document.getElementById('submit-modal').style.display = 'flex';
+
+    // Reset the file input for next use
+    input.value = '';
+
+  } catch(e) {
+    statusEl.textContent = '✗ Error: ' + e.message;
+    statusEl.style.color = 'var(--danger-text)';
+  }
+}
+
+function openSubmitModal() {
+  editingId = null;
+  document.getElementById('submit-modal-title').textContent = 'Submit an event';
+  document.getElementById('submit-modal-btn').textContent = 'Submit event';
+  document.getElementById('submit-form-body').style.display='';
+  document.getElementById('submit-success').style.display='none';
+  document.getElementById('submit-error').style.display='none';
+  ['f-name','f-date','f-location','f-organizer','f-url','f-desc'].forEach(id=>document.getElementById(id).value='');
+  buildTimeOptions('f-time', '12:00');
+  buildTimeOptions('f-time-end', '');
+  document.getElementById('r-type').value='none';
+  onRecurTypeChange();
+  document.getElementById('submit-modal').style.display='flex';
+}
+
+function openEditModal(ev) {
+  editingId = ev.id;
+  document.getElementById('submit-modal-title').textContent = 'Edit event';
+  document.getElementById('submit-modal-btn').textContent = 'Save changes';
+  document.getElementById('submit-form-body').style.display='';
+  document.getElementById('submit-success').style.display='none';
+  document.getElementById('submit-error').style.display='none';
+  // Fill in fields
+  document.getElementById('f-name').value = ev.name || '';
+  document.getElementById('f-date').value = ev.date || '';
+  buildTimeOptions('f-time', ev.time || '12:00');
+  buildTimeOptions('f-time-end', ev.timeEnd || '');
+  document.getElementById('f-location').value = ev.location || '';
+  document.getElementById('f-organizer').value = ev.organizer || '';
+  document.getElementById('f-url').value = ev.url || '';
+  document.getElementById('f-desc').value = ev.desc || '';
+  // Recurrence
+  document.getElementById('r-type').value = ev.recurType || 'none';
+  onRecurTypeChange();
+  if (ev.recurType !== 'none') {
+    document.getElementById('r-monthly-mode').value = ev.recurMonthlyMode || 'date';
+    if (ev.recurNoEnd) {
+      document.getElementById('r-end-type').value = 'never';
+    } else {
+      document.getElementById('r-end-type').value = 'date';
+      document.getElementById('r-end-date').value = ev.recurEndDate || '';
+    }
+    onEndTypeChange();
+  }
+  updateMonthlyDesc();
+  document.getElementById('submit-modal').style.display='flex';
+}
+
+function padTime(t) {
+  if (!t) return null;
+  const parts = t.split(':');
+  return parts[0].padStart(2,'0') + ':' + (parts[1]||'00').padStart(2,'0');
+}
+
+async function submitEvent() {
+  const name=document.getElementById('f-name').value.trim();
+  const date=document.getElementById('f-date').value;
+  const time=document.getElementById('f-time').value;
+  const timeEnd=document.getElementById('f-time-end').value;
+  const location=document.getElementById('f-location').value.trim();
+  const organizer=document.getElementById('f-organizer').value.trim();
+  const url=document.getElementById('f-url').value.trim();
+  const desc=document.getElementById('f-desc').value.trim();
+  const recurType=document.getElementById('r-type').value;
+  const recurMonthlyMode=document.getElementById('r-monthly-mode').value;
+  const recurEndType=document.getElementById('r-end-type').value;
+  const recurEndDate=document.getElementById('r-end-date').value;
+  const recurNoEnd = recurType!=='none' && recurEndType==='never';
+
+  const errEl=document.getElementById('submit-error');
+  if (!name||!date||!time||!location||!organizer) { errEl.textContent='Please fill in all required fields.'; errEl.style.display=''; return; }
+  if (recurType!=='none' && recurEndType==='date' && !recurEndDate) { errEl.textContent='Please set an end date for the recurrence.'; errEl.style.display=''; return; }
+  errEl.style.display='none';
+
+  // Ensure time values are zero-padded HH:MM as Postgres expects
+  const safeTime = padTime(time);
+  const safeTimeEnd = padTime(timeEnd);
+
+  const dbBody = {
+    name, date, time: safeTime, time_end: safeTimeEnd, location, organizer,
+    url: url||null, description: desc||null,
+    recur_type: recurType,
+    recur_monthly_mode: recurMonthlyMode,
+    recur_end_date: (recurNoEnd||!recurEndDate) ? null : recurEndDate,
+    recur_no_end: recurNoEnd
+  };
+
+  if (editingId) {
+    // ---- UPDATE existing event ----
+    if (db) {
+      try {
+        await dbFetch(`events?id=eq.${editingId}`, { method:'PATCH', body: dbBody, prefer:'return=minimal' });
+      } catch(e) { errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
+    }
+    const idx = state.events.findIndex(e => e.id === editingId);
+    if (idx !== -1) {
+      state.events[idx] = { ...state.events[idx], name, date, time, timeEnd, location, organizer,
+        url, desc, recurType, recurMonthlyMode,
+        recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
+    }
+    saveLocalState(); renderAll(); renderAdmin();
+    closeModal('submit-modal');
+    editingId = null;
+  } else {
+    // ---- CREATE new event ----
+    const status = state.requireApproval ? 'pending' : 'approved';
+    const eventData = { name, date, time, timeEnd, location, organizer, url, desc, status, recurType, recurMonthlyMode, recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
+    if (db) {
+      try {
+        console.log('Submitting event to:', db.url, JSON.stringify({ ...dbBody, status }));
+        await dbFetch('events', { method:'POST', body: { ...dbBody, status }, prefer:'return=minimal' });
+        // Reload all events from DB to pick up the new one with its server-assigned id
+        await loadEventsFromDb();
+      } catch(e) { console.error('Submit error:', e); errEl.textContent='Database error: '+e.message; errEl.style.display=''; return; }
+    } else {
+      eventData.id = Date.now().toString();
+      state.events.push(eventData);
+      saveLocalState();
+    }
+    renderAll();
+    document.getElementById('submit-form-body').style.display='none';
+    document.getElementById('submit-success').style.display='';
+    document.getElementById('submit-success-msg').textContent = status==='approved'
+      ? 'Your event has been added to the calendar!'
+      : 'Your event has been submitted and is pending admin approval. Thank you!';
+  }
+}
+
+// ================================================================
+// ADMIN
+// ================================================================
+function showSection(name, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(name==='admin') {
+    if(!state.adminLoggedIn) {
+      document.getElementById('admin-login-view').style.display='';
+      document.getElementById('admin-panel-view').style.display='none';
+    } else {
+      document.getElementById('admin-login-view').style.display='none';
+      document.getElementById('admin-panel-view').style.display='';
+      renderAdmin();
+    }
+  }
+}
+
+function toggleKebab() { document.getElementById('kebab-menu').classList.toggle('hidden'); }
+function closeKebab() { document.getElementById('kebab-menu').classList.add('hidden'); }
+document.addEventListener('click', e => { if(!e.target.closest('.kebab-wrap')) closeKebab(); });
+
+function doLogin() {
+  if(document.getElementById('admin-pass').value===ADMIN_PASS) {
+    state.adminLoggedIn=true;
+    document.getElementById('login-error').style.display='none';
+    document.getElementById('admin-login-view').style.display='none';
+    document.getElementById('admin-panel-view').style.display='';
+    renderAdmin();
+  } else { document.getElementById('login-error').style.display=''; }
+}
+
+function adminLogout() {
+  state.adminLoggedIn=false;
+  document.getElementById('admin-login-view').style.display='';
+  document.getElementById('admin-panel-view').style.display='none';
+  document.getElementById('admin-pass').value='';
+}
+
+function toggleApproval(el) { state.requireApproval=el.checked; updateApprovalPill(); saveLocalState(); }
+function updateApprovalPill() {
+  const pill=document.getElementById('approval-status-pill');
+  pill.textContent=state.requireApproval?'Approval on':'Auto-publish on';
+  pill.style.background=state.requireApproval?'#fef3c7':'#e0f0f2';
+  pill.style.color=state.requireApproval?'#92400e':'#004C54';
+}
+
+function saveInfoText() {
+  state.infoText=document.getElementById('info-text-editor').value;
+  saveLocalState(); renderInfoBanner();
+  const s=document.getElementById('info-save-status');
+  s.textContent='Saved!'; setTimeout(()=>s.textContent='',2000);
+}
+
+function renderAdmin() {
+  document.getElementById('approval-toggle').checked=state.requireApproval;
+  updateApprovalPill();
+  document.getElementById('info-text-editor').value=state.infoText||'';
+  if(state.dbUrl) { document.getElementById('cfg-url').value=state.dbUrl; }
+  if(state.dbKey) { document.getElementById('cfg-key').value=state.dbKey; }
+  renderAdminList('admin-pending-list',state.events.filter(e=>e.status==='pending'),'pending');
+  renderAdminList('admin-approved-list',state.events.filter(e=>e.status==='approved'),'approved');
+  renderAdminList('admin-rejected-list',state.events.filter(e=>e.status==='rejected'),'rejected');
+}
+
+function renderAdminList(elId, evs, type) {
+  const el=document.getElementById(elId);
+  if(!evs.length){el.innerHTML='<div style="font-size:13px;color:var(--text-muted);padding:10px 0">None</div>';return;}
+  el.innerHTML='';
+  evs.forEach(ev=>{
+    const row=document.createElement('div'); row.className='admin-event-row';
+    const recDesc=describeRecurrence(ev);
+    row.innerHTML=`<div class="admin-event-info">
+      <div class="name">${esc(ev.name)}</div>
+      <div class="meta">${ev.date} · ${fmtTimeRange(ev.time, ev.timeEnd)} · ${esc(ev.location)} · ${esc(ev.organizer)}${recDesc?` · ↻ ${esc(recDesc)}`:''}
+      </div></div><span class="badge ${ev.status}">${ev.status}</span>`;
+    // Edit button appears on all event types
+    const eb=document.createElement('button'); eb.className='btn sm'; eb.textContent='Edit';
+    eb.onclick=()=>openEditModal(ev);
+    row.appendChild(eb);
+    if(type==='pending'){
+      const ab=document.createElement('button'); ab.className='btn sm approve'; ab.textContent='Approve';
+      ab.onclick=()=>changeEventStatus(ev,'approved');
+      const rb=document.createElement('button'); rb.className='btn sm danger'; rb.textContent='Reject';
+      rb.onclick=()=>changeEventStatus(ev,'rejected');
+      row.appendChild(ab); row.appendChild(rb);
+    } else if(type==='approved'){
+      const rb=document.createElement('button'); rb.className='btn sm danger'; rb.textContent='Remove';
+      rb.onclick=()=>deleteEvent(ev);
+      row.appendChild(rb);
+    } else {
+      const ab=document.createElement('button'); ab.className='btn sm approve'; ab.textContent='Restore';
+      ab.onclick=()=>changeEventStatus(ev,'approved');
+      const db2=document.createElement('button'); db2.className='btn sm danger'; db2.textContent='Delete';
+      db2.onclick=()=>deleteEvent(ev);
+      row.appendChild(ab); row.appendChild(db2);
+    }
+    el.appendChild(row);
+  });
+}
+
+async function changeEventStatus(ev, newStatus) {
+  if(db) {
+    try { await dbFetch(`events?id=eq.${ev.id}`,{method:'PATCH',body:{status:newStatus},prefer:'return=minimal'}); }
+    catch(e){alert('DB error: '+e.message);return;}
+  }
+  ev.status=newStatus; saveLocalState(); renderAdmin(); renderAll();
+}
+
+async function deleteEvent(ev) {
+  if(db) {
+    try { await dbFetch(`events?id=eq.${ev.id}`,{method:'DELETE',prefer:'return=minimal'}); }
+    catch(e){alert('DB error: '+e.message);return;}
+  }
+  state.events=state.events.filter(e=>e.id!==ev.id); saveLocalState(); renderAdmin(); renderAll();
+}
+
+// ================================================================
+// UTILS
+// ================================================================
+function closeModal(id){document.getElementById(id).style.display='none';}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function pad(n){return String(n).padStart(2,'0');}
+function parseDate(s){const[y,m,d]=s.split('-');return new Date(+y,+m-1,+d);}
+function formatDateISO(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function formatDateShort(s){const d=parseDate(s);return`${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`;}
+function formatDateLong(s){const d=parseDate(s);return`${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;}
+function fmtTime(t){if(!t)return'';const[h,m]=t.split(':');const hr=parseInt(h);return`${hr>12?hr-12:hr||12}:${m} ${hr>=12?'PM':'AM'}`;}
+function fmtTimeRange(start,end){if(!end)return fmtTime(start);return fmtTime(start)+'–'+fmtTime(end);}
+
+// ================================================================
+// INIT
+// ================================================================
+async function init() {
+  loadLocalState();
+  const url = state.dbUrl || DEFAULT_SUPABASE_URL;
+  const key = state.dbKey || DEFAULT_SUPABASE_KEY;
+  if (url && key) {
+    state.dbUrl = url; state.dbKey = key;
+    initSupabase(url, key);
+    await loadEventsFromDb();
+  }
+  renderAll();
+}
+
+init();
+</script>
+</body>
+</html>
