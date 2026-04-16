@@ -503,11 +503,15 @@ async function dbFetch(path, opts = {}) {
     throw new Error(`Network error — could not reach Supabase. Check the URL is correct. (${networkErr.message})`);
   }
   if (!res.ok) {
-    let errText = await res.text();
+    let errText = '';
+    try { errText = await res.text(); } catch(e) {}
     let errMsg = `HTTP ${res.status}`;
-    try { const j = JSON.parse(errText); errMsg += ': ' + (j.message || j.hint || j.error || errText); }
-    catch(e) { errMsg += ': ' + errText.slice(0, 200); }
+    if (errText) {
+      try { const j = JSON.parse(errText); errMsg += ': ' + (j.message || j.hint || j.error || errText); }
+      catch(e) { errMsg += ': ' + errText.slice(0, 200); }
+    }
     throw new Error(errMsg);
+  }
   }
   if (opts.method === 'DELETE' || opts.method === 'PATCH' || res.status === 204) return null;
   return res.json();
@@ -1119,7 +1123,7 @@ async function submitEvent() {
     const eventData = { name, date, time, timeEnd, location, organizer, url, desc, status, recurType, recurMonthlyMode, recurEndDate: recurNoEnd?'':recurEndDate, recurNoEnd };
     if (db) {
       try {
-        console.log('Submitting event:', JSON.stringify({ ...dbBody, status }));
+        console.log('Submitting event to:', db.url, JSON.stringify({ ...dbBody, status }));
         await dbFetch('events', { method:'POST', body: { ...dbBody, status }, prefer:'return=minimal' });
         // Reload all events from DB to pick up the new one with its server-assigned id
         await loadEventsFromDb();
