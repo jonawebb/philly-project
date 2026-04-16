@@ -502,6 +502,7 @@ async function dbFetch(path, opts = {}) {
   } catch(networkErr) {
     throw new Error(`Network error — could not reach Supabase. Check the URL is correct. (${networkErr.message})`);
   }
+  console.log('Supabase response status:', res.status, res.statusText, 'for', opts.method||'GET');
   if (!res.ok) {
     let errText = '';
     try { errText = await res.text(); } catch(e) {}
