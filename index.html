@@ -830,7 +830,7 @@ function renderList() {
       <h3>${esc(ev.name)}${recDesc?`<span class="recur-badge">↻ ${esc(recDesc.split('·')[0].trim())}</span>`:''}</h3>
       <div class="event-meta"><span>${fmtTimeRange(ev.time, ev.timeEnd)}</span><span>${esc(ev.location)}</span><span>${esc(ev.organizer)}</span></div>
       ${ev.desc?`<div style="font-size:13px;color:var(--text-muted);margin-top:5px">${esc(ev.desc)}</div>`:''}
-      ${ev.url?`<a class="event-link" href="${esc(ev.url)}" target="_blank" onclick="event.stopPropagation()">More info →</a>`:''}
+      ${ev.url?`<a class="event-link" href="${esc(normalizeUrl(ev.url))}" target="_blank" onclick="event.stopPropagation()">More info →</a>`:''}
     </div>`;
     card.onclick=()=>showEventDetail(ev);
     el.appendChild(card);
@@ -859,7 +859,7 @@ function showDayView(dateStr) {
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:3px">${fmtTimeRange(ev.time, ev.timeEnd)} &nbsp;·&nbsp; ${esc(ev.location)}</div>
         <div style="font-size:13px;color:var(--text-muted)">${esc(ev.organizer)}${recDesc ? ` &nbsp;·&nbsp; ↻ ${esc(recDesc.split('·')[0].trim())}` : ''}</div>
         ${ev.desc ? `<div style="font-size:13px;margin-top:5px">${esc(ev.desc)}</div>` : ''}
-        ${ev.url ? `<a class="event-link" href="${esc(ev.url)}" target="_blank" style="margin-top:4px;display:inline-block">More info →</a>` : ''}
+        ${ev.url ? `<a class="event-link" href="${esc(normalizeUrl(ev.url))}" target="_blank" style="margin-top:4px;display:inline-block">More info →</a>` : ''}
       </div>`;
     });
     body.innerHTML = html;
@@ -877,7 +877,7 @@ function showEventDetail(ev) {
     <div class="detail-field"><div class="detail-label">Organizer</div><div class="detail-value">${esc(ev.organizer)}</div></div>
     ${recDesc?`<div class="detail-field"><div class="detail-label">Recurrence</div><div class="detail-value">${esc(recDesc)}</div></div>`:''}
     ${ev.desc?`<div class="detail-field"><div class="detail-label">Description</div><div class="detail-value">${esc(ev.desc)}</div></div>`:''}
-    ${ev.url?`<div class="detail-field"><div class="detail-label">More info</div><div class="detail-value"><a class="event-link" href="${esc(ev.url)}" target="_blank">${esc(ev.url)}</a></div></div>`:''}
+    ${ev.url?`<div class="detail-field"><div class="detail-label">More info</div><div class="detail-value"><a class="event-link" href="${esc(normalizeUrl(ev.url))}" target="_blank">${esc(normalizeUrl(ev.url))}</a></div></div>`:''}
     <div style="margin-top:1rem;padding-top:1rem;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
       <a class="btn primary sm" href="${gcalHref}" target="_blank" rel="noopener" style="text-decoration:none">Add to Google Calendar</a>
       <button class="btn sm" onclick="closeModal('detail-modal');openSubscribeModal()">Subscribe to all events</button>
@@ -1110,7 +1110,7 @@ async function submitEvent() {
   const timeEnd=document.getElementById('f-time-end').value;
   const location=document.getElementById('f-location').value.trim();
   const organizer=document.getElementById('f-organizer').value.trim();
-  const url=document.getElementById('f-url').value.trim();
+  const url=normalizeUrl(document.getElementById('f-url').value);
   const desc=document.getElementById('f-desc').value.trim();
   const recurType=document.getElementById('r-type').value;
   const recurMonthlyMode=document.getElementById('r-monthly-mode').value;
@@ -1169,6 +1169,7 @@ async function submitEvent() {
       saveLocalState();
     }
     renderAll();
+    if (state.adminLoggedIn) renderAdmin();
     document.getElementById('submit-form-body').style.display='none';
     document.getElementById('submit-success').style.display='';
     document.getElementById('submit-success-msg').textContent = status==='approved'
@@ -1336,7 +1337,7 @@ function googleCalendarUrl(ev) {
   const detailLines = [];
   if (ev.desc) detailLines.push(ev.desc);
   if (ev.organizer) detailLines.push(`Organizer: ${ev.organizer}`);
-  if (ev.url) detailLines.push(`More info: ${ev.url}`);
+  if (ev.url) detailLines.push(`More info: ${normalizeUrl(ev.url)}`);
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',
@@ -1360,6 +1361,17 @@ function addOneHour(hhmm) {
 // UTILS
 // ================================================================
 function closeModal(id){document.getElementById(id).style.display='none';}
+
+// Ensure a user-entered URL has a usable scheme. Bare values like
+// "example.org" or "www.example.org/foo" become "https://…".
+// Existing schemes (http, https, mailto, tel, etc.) are left alone.
+function normalizeUrl(u) {
+  if (!u) return '';
+  const trimmed = String(u).trim();
+  if (!trimmed) return '';
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  return 'https://' + trimmed;
+}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function pad(n){return String(n).padStart(2,'0');}
 function parseDate(s){const[y,m,d]=s.split('-');return new Date(+y,+m-1,+d);}
