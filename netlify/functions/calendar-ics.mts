@@ -55,6 +55,14 @@ function cleanUri(s: string | null | undefined): string {
   return s.replace(/[\r\n\\]/g, "").trim();
 }
 
+/** Add https:// to bare URLs like "example.org". Leaves real schemes alone. */
+function normalizeUrl(s: string | null | undefined): string {
+  const trimmed = cleanUri(s);
+  if (!trimmed) return "";
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  return "https://" + trimmed;
+}
+
 /** Fold a logical line to <=75 octets per physical line (UTF-8 safe). */
 function foldLine(line: string): string {
   const enc = new TextEncoder();
@@ -194,18 +202,17 @@ function buildVevent(ev: EventRow, now: Date): string[] {
 
   if (ev.location) lines.push(`LOCATION:${escText(ev.location)}`);
 
+  const normalizedUrl = normalizeUrl(ev.url);
+
   const descParts: string[] = [];
   if (ev.description) descParts.push(ev.description);
   if (ev.organizer) descParts.push(`Organizer: ${ev.organizer}`);
-  if (ev.url) descParts.push(`More info: ${ev.url}`);
+  if (normalizedUrl) descParts.push(`More info: ${normalizedUrl}`);
   if (descParts.length) {
     lines.push(`DESCRIPTION:${escText(descParts.join("\n\n"))}`);
   }
 
-  if (ev.url) {
-    const cleaned = cleanUri(ev.url);
-    if (cleaned) lines.push(`URL:${cleaned}`);
-  }
+  if (normalizedUrl) lines.push(`URL:${normalizedUrl}`);
 
   const rrule = buildRrule(ev);
   if (rrule) lines.push(rrule);
