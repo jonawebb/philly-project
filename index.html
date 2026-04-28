@@ -184,6 +184,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="header-nav">
       <button class="nav-btn active" id="nav-calendar" onclick="showSection('calendar',this)">Calendar</button>
       <button class="nav-btn" id="nav-list" onclick="showSection('list',this)">List</button>
+      <button class="nav-btn" id="nav-subscribe" onclick="openSubscribeModal()" title="Subscribe in your calendar app">Subscribe</button>
       <button class="btn-submit" onclick="openSubmitModal()">+ Submit Event</button>
       <div class="kebab-wrap">
         <button class="kebab-btn" onclick="toggleKebab()" title="More">&#8942;</button>
@@ -412,6 +413,40 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
   <div class="modal">
     <div id="detail-body"></div>
     <div class="form-actions"><button class="btn" onclick="closeModal('detail-modal')">Close</button></div>
+  </div>
+</div>
+
+<!-- Subscribe modal -->
+<div id="subscribe-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('subscribe-modal')">
+  <div class="modal">
+    <h2>Subscribe to the calendar</h2>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">
+      Add Philly Actions to your calendar app and approved events will appear automatically — including future edits and new events as they're posted.
+    </p>
+
+    <div class="form-row">
+      <label>Subscription URL</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="subscribe-url-input" readonly onclick="this.select()" style="flex:1;font-family:monospace;font-size:12px"/>
+        <button class="btn primary sm" onclick="copySubscribeUrl(this)" style="white-space:nowrap">Copy</button>
+      </div>
+    </div>
+
+    <div class="section-divider">How to add it</div>
+    <div style="font-size:13px;line-height:1.55;color:var(--text)">
+      <p style="margin-bottom:10px"><strong>Google Calendar (web):</strong> In the left sidebar, hover over "Other calendars" and click <strong>+ → From URL</strong>. Paste the URL above and click "Add calendar."</p>
+      <p style="margin-bottom:10px"><strong>Apple Calendar — Mac:</strong> <strong>File → New Calendar Subscription</strong>, paste the URL.</p>
+      <p style="margin-bottom:10px"><strong>Apple Calendar — iPhone/iPad:</strong> <strong>Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar</strong>. Paste the URL.</p>
+      <p style="margin-bottom:10px"><strong>Outlook (web):</strong> <strong>Calendar → Add calendar → Subscribe from web</strong>. Paste the URL.</p>
+    </div>
+
+    <p style="font-size:12px;color:var(--text-muted);margin-top:1rem;line-height:1.5">
+      <strong>Note:</strong> Google Calendar refreshes subscribed calendars on its own schedule — usually every few hours, sometimes up to a day. For last-minute events, use "Add to Google Calendar" on the event itself.
+    </p>
+
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal('subscribe-modal')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -834,6 +869,7 @@ function showDayView(dateStr) {
 
 function showEventDetail(ev) {
   const recDesc = describeRecurrence(ev);
+  const gcalHref = esc(googleCalendarUrl(ev));
   document.getElementById('detail-body').innerHTML=`
     <h2 style="font-size:18px;font-weight:600;margin-bottom:1.25rem">${esc(ev.name)}</h2>
     <div class="detail-field"><div class="detail-label">Date &amp; time</div><div class="detail-value">${formatDateLong(ev.date)} at ${fmtTimeRange(ev.time, ev.timeEnd)}</div></div>
@@ -841,7 +877,11 @@ function showEventDetail(ev) {
     <div class="detail-field"><div class="detail-label">Organizer</div><div class="detail-value">${esc(ev.organizer)}</div></div>
     ${recDesc?`<div class="detail-field"><div class="detail-label">Recurrence</div><div class="detail-value">${esc(recDesc)}</div></div>`:''}
     ${ev.desc?`<div class="detail-field"><div class="detail-label">Description</div><div class="detail-value">${esc(ev.desc)}</div></div>`:''}
-    ${ev.url?`<div class="detail-field"><div class="detail-label">More info</div><div class="detail-value"><a class="event-link" href="${esc(ev.url)}" target="_blank">${esc(ev.url)}</a></div></div>`:''}`;
+    ${ev.url?`<div class="detail-field"><div class="detail-label">More info</div><div class="detail-value"><a class="event-link" href="${esc(ev.url)}" target="_blank">${esc(ev.url)}</a></div></div>`:''}
+    <div style="margin-top:1rem;padding-top:1rem;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn primary sm" href="${gcalHref}" target="_blank" rel="noopener" style="text-decoration:none">Add to Google Calendar</a>
+      <button class="btn sm" onclick="closeModal('detail-modal');openSubscribeModal()">Subscribe to all events</button>
+    </div>`;
   document.getElementById('detail-modal').style.display='flex';
 }
 
@@ -1254,6 +1294,66 @@ async function deleteEvent(ev) {
     catch(e){alert('DB error: '+e.message);return;}
   }
   state.events=state.events.filter(e=>e.id!==ev.id); saveLocalState(); renderAdmin(); renderAll();
+}
+
+// ================================================================
+// SUBSCRIBE
+// ================================================================
+function calendarFeedUrl() {
+  return `${window.location.origin}/api/calendar.ics`;
+}
+
+function openSubscribeModal() {
+  document.getElementById('subscribe-url-input').value = calendarFeedUrl();
+  document.getElementById('subscribe-modal').style.display = 'flex';
+}
+
+async function copySubscribeUrl(btn) {
+  const url = calendarFeedUrl();
+  const originalText = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '✓ Copied';
+  } catch(e) {
+    // Fallback: select the input so the user can copy manually
+    const input = document.getElementById('subscribe-url-input');
+    input.focus(); input.select();
+    btn.textContent = 'Select & copy';
+  }
+  setTimeout(() => { btn.textContent = originalText; }, 2000);
+}
+
+// Build a Google Calendar "Add event" URL for a single event.
+// Times are emitted in local form with ctz=America/New_York so Google
+// interprets them in Philly time regardless of the viewer's timezone.
+function googleCalendarUrl(ev) {
+  const dateCompact = ev.date.replace(/-/g, '');
+  const startT = (ev.time || '12:00').replace(':', '') + '00';
+  const endTimeStr = ev.timeEnd && ev.timeEnd.trim() ? ev.timeEnd : addOneHour(ev.time || '12:00');
+  const endT = endTimeStr.replace(':', '') + '00';
+  const dates = `${dateCompact}T${startT}/${dateCompact}T${endT}`;
+
+  const detailLines = [];
+  if (ev.desc) detailLines.push(ev.desc);
+  if (ev.organizer) detailLines.push(`Organizer: ${ev.organizer}`);
+  if (ev.url) detailLines.push(`More info: ${ev.url}`);
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: ev.name || 'Philly Actions event',
+    dates,
+    ctz: 'America/New_York',
+  });
+  if (ev.location) params.set('location', ev.location);
+  if (detailLines.length) params.set('details', detailLines.join('\n\n'));
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function addOneHour(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = Math.min(h * 60 + m + 60, 23 * 60 + 59);
+  return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
 }
 
 // ================================================================
