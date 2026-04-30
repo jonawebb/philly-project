@@ -452,13 +452,16 @@ CREATE POLICY "allow all" ON events USING (true) WITH CHECK (true);</pre>
 
 <script>
 // ================================================================
-// CONFIGURATION — change before deploying
+// CONFIGURATION
+// Supabase credentials and the admin password live in Netlify env vars
+// (SUPABASE_URL, SUPABASE_KEY, ADMIN_PASSWORD) and are fetched at runtime.
+// The info banner text and the require-approval toggle live in the
+// `site_settings` table in Supabase so admin edits are shared globally
+// instead of only in one browser's localStorage.
 // ================================================================
-const ADMIN_PASS = 'TestPassword123';
 const STORAGE_KEY = 'philly-actions-v2';
-const DEFAULT_SUPABASE_URL = 'https://sanlrxdqjylilagbwuaj.supabase.co';   // ← your URL
-const DEFAULT_SUPABASE_KEY = 'sb_publishable_D1mhucz-odIUEoVy_SOnGA_fg5jO7XT';                      // ← your anon key
-// ================================================================
+const DB_OVERRIDE_KEY = 'philly-actions-db-override';
+const DEFAULT_INFO_TEXT = 'Welcome to Philly Actions Calendar — a community resource for protests, rallies, marches, and direct actions in Philadelphia.\n\nTo submit an event, click "+ Submit Event". Questions? Email info@phillyactions.com.';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -472,7 +475,7 @@ let state = {
   calMonth: new Date().getMonth(),
   listFilter: 'upcoming',
   adminLoggedIn: false,
-  infoText: 'Welcome to Philly Actions Calendar — a community resource for protests, rallies, marches, and direct actions in Philadelphia.\n\nTo submit an event, click "+ Submit Event". Questions? Email phillyactions@example.com.',
+  infoText: DEFAULT_INFO_TEXT,
   dbUrl: '', dbKey: ''
 };
 
@@ -483,11 +486,23 @@ function loadLocalState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (saved) {
-      if (saved.requireApproval !== undefined) state.requireApproval = saved.requireApproval;
-      if (saved.infoText !== undefined) state.infoText = saved.infoText;
-      if (saved.dbUrl) state.dbUrl = saved.dbUrl;
-      if (saved.dbKey) state.dbKey = saved.dbKey;
       if (saved.events) state.events = saved.events;
+      // requireApproval and infoText now live in the DB. Old localStorage
+      // values are intentionally ignored.
+      // Legacy: migrate prior dbUrl/dbKey overrides to the dedicated key.
+      if (saved.dbUrl && saved.dbKey && !localStorage.getItem(DB_OVERRIDE_KEY)) {
+        try {
+          localStorage.setItem(DB_OVERRIDE_KEY, JSON.stringify({ url: saved.dbUrl, key: saved.dbKey }));
+        } catch(e) {}
+      }
+    }
+  } catch(e) {}
+  // Load explicit DB override (set via the admin "Connect" panel)
+  try {
+    const override = JSON.parse(localStorage.getItem(DB_OVERRIDE_KEY) || 'null');
+    if (override && override.url && override.key) {
+      state.dbUrl = override.url;
+      state.dbKey = override.key;
     }
   } catch(e) {}
 }
@@ -495,10 +510,6 @@ function loadLocalState() {
 function saveLocalState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      requireApproval: state.requireApproval,
-      infoText: state.infoText,
-      dbUrl: state.dbUrl,
-      dbKey: state.dbKey,
       events: db ? [] : state.events // don't cache events if using DB
     }));
   } catch(e) {}
@@ -606,8 +617,10 @@ async function saveDbConfig() {
     const rows = await dbFetch('events?order=date.asc&limit=200');
     state.events = rows.map(normalizeDbRow);
     setDbStatus('connected');
-    st.textContent = '✓ Connected!';
+    st.textContent = '✓ Connected (override active — env vars ignored)';
     st.style.color = 'var(--success-text)';
+    try { localStorage.setItem(DB_OVERRIDE_KEY, JSON.stringify({ url, key })); } catch(e) {}
+    await loadSiteSettings();
     saveLocalState(); renderAll(); renderAdmin();
   } catch(e) {
     db = null;
@@ -623,7 +636,20 @@ function clearDbConfig() {
   document.getElementById('cfg-key').value = '';
   document.getElementById('cfg-status').textContent = 'Disconnected.';
   document.getElementById('db-bar').style.display = 'none';
+  try { localStorage.removeItem(DB_OVERRIDE_KEY); } catch(e) {}
   saveLocalState();
+}
+
+// Fetch the server-side default config (Supabase URL + anon key) so they
+// don't have to be hardcoded in this file. Returns null on any failure.
+async function fetchServerConfig() {
+  try {
+    const res = await fetch('/api/config');
+    if (!res.ok) return null;
+    const cfg = await res.json();
+    if (!cfg || !cfg.supabaseUrl || !cfg.supabaseKey) return null;
+    return cfg;
+  } catch(e) { return null; }
 }
 
 // ================================================================
@@ -854,12 +880,16 @@ function showDayView(dateStr) {
     let html = heading;
     evs.forEach(ev => {
       const recDesc = describeRecurrence(ev);
+      const gcalHref = esc(googleCalendarUrl(ev));
       html += `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
         <div style="font-size:15px;font-weight:600;margin-bottom:4px">${esc(ev.name)}</div>
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:3px">${fmtTimeRange(ev.time, ev.timeEnd)} &nbsp;·&nbsp; ${esc(ev.location)}</div>
         <div style="font-size:13px;color:var(--text-muted)">${esc(ev.organizer)}${recDesc ? ` &nbsp;·&nbsp; ↻ ${esc(recDesc.split('·')[0].trim())}` : ''}</div>
         ${ev.desc ? `<div style="font-size:13px;margin-top:5px">${esc(ev.desc)}</div>` : ''}
-        ${ev.url ? `<a class="event-link" href="${esc(normalizeUrl(ev.url))}" target="_blank" style="margin-top:4px;display:inline-block">More info →</a>` : ''}
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px">
+          <a class="event-link" href="${gcalHref}" target="_blank" rel="noopener">+ Google Calendar</a>
+          ${ev.url ? `<a class="event-link" href="${esc(normalizeUrl(ev.url))}" target="_blank">More info →</a>` : ''}
+        </div>
       </div>`;
     });
     body.innerHTML = html;
@@ -1202,14 +1232,28 @@ function toggleKebab() { document.getElementById('kebab-menu').classList.toggle(
 function closeKebab() { document.getElementById('kebab-menu').classList.add('hidden'); }
 document.addEventListener('click', e => { if(!e.target.closest('.kebab-wrap')) closeKebab(); });
 
-function doLogin() {
-  if(document.getElementById('admin-pass').value===ADMIN_PASS) {
+async function doLogin() {
+  const pass = document.getElementById('admin-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display='none';
+  let ok = false;
+  try {
+    const res = await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pass })
+    });
+    if (res.ok) {
+      const j = await res.json().catch(()=>null);
+      ok = !!(j && j.ok);
+    }
+  } catch(e) {}
+  if (ok) {
     state.adminLoggedIn=true;
-    document.getElementById('login-error').style.display='none';
     document.getElementById('admin-login-view').style.display='none';
     document.getElementById('admin-panel-view').style.display='';
     renderAdmin();
-  } else { document.getElementById('login-error').style.display=''; }
+  } else { errEl.style.display=''; }
 }
 
 function adminLogout() {
@@ -1219,7 +1263,11 @@ function adminLogout() {
   document.getElementById('admin-pass').value='';
 }
 
-function toggleApproval(el) { state.requireApproval=el.checked; updateApprovalPill(); saveLocalState(); }
+async function toggleApproval(el) {
+  state.requireApproval=el.checked;
+  updateApprovalPill();
+  await saveSiteSetting('require_approval', state.requireApproval);
+}
 function updateApprovalPill() {
   const pill=document.getElementById('approval-status-pill');
   pill.textContent=state.requireApproval?'Approval on':'Auto-publish on';
@@ -1227,11 +1275,54 @@ function updateApprovalPill() {
   pill.style.color=state.requireApproval?'#92400e':'#004C54';
 }
 
-function saveInfoText() {
+async function saveInfoText() {
   state.infoText=document.getElementById('info-text-editor').value;
-  saveLocalState(); renderInfoBanner();
+  renderInfoBanner();
   const s=document.getElementById('info-save-status');
-  s.textContent='Saved!'; setTimeout(()=>s.textContent='',2000);
+  s.textContent='Saving…';
+  try {
+    await saveSiteSetting('info_text', state.infoText);
+    s.textContent='Saved!';
+  } catch(e) {
+    s.textContent='✗ ' + (e.message || 'save failed');
+  }
+  setTimeout(()=>s.textContent='',2500);
+}
+
+// site_settings is a key/value table in Supabase. Two rows we care about:
+//   ('info_text',        '<json string>')
+//   ('require_approval', 'true' | 'false')
+// Anyone with the anon key can read them; with our open RLS policy anyone
+// can also write them. That matches the existing trust model for events.
+async function loadSiteSettings() {
+  if (!db) return;
+  try {
+    const rows = await dbFetch('site_settings?select=key,value');
+    if (!Array.isArray(rows)) return;
+    for (const r of rows) {
+      let parsed;
+      try { parsed = JSON.parse(r.value); } catch(e) { parsed = r.value; }
+      if (r.key === 'info_text') {
+        state.infoText = String(parsed || '');
+      } else if (r.key === 'require_approval') {
+        state.requireApproval = parsed === true || parsed === 'true';
+      }
+    }
+    renderInfoBanner();
+    if (state.adminLoggedIn) renderAdmin();
+  } catch(e) {
+    console.warn('loadSiteSettings failed:', e.message);
+  }
+}
+
+async function saveSiteSetting(key, value) {
+  if (!db) throw new Error('Database not connected');
+  // Upsert via PostgREST: POST with on_conflict + Prefer: resolution=merge-duplicates
+  await dbFetch('site_settings?on_conflict=key', {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates,return=minimal',
+    body: { key, value: JSON.stringify(value) }
+  });
 }
 
 function renderAdmin() {
@@ -1386,12 +1477,18 @@ function fmtTimeRange(start,end){if(!end)return fmtTime(start);return fmtTime(st
 // ================================================================
 async function init() {
   loadLocalState();
-  const url = state.dbUrl || DEFAULT_SUPABASE_URL;
-  const key = state.dbKey || DEFAULT_SUPABASE_KEY;
+  // Prefer admin-configured override (saved in localStorage). Otherwise
+  // fall back to the values served by /api/config (Netlify env vars).
+  let url = state.dbUrl, key = state.dbKey;
+  if (!url || !key) {
+    const cfg = await fetchServerConfig();
+    if (cfg) { url = cfg.supabaseUrl; key = cfg.supabaseKey; }
+  }
   if (url && key) {
     state.dbUrl = url; state.dbKey = key;
     initSupabase(url, key);
     await loadEventsFromDb();
+    await loadSiteSettings();
   }
   renderAll();
 }
